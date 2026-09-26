@@ -23,12 +23,12 @@ fn init_tracing() -> Result<()> {
             .with(filter)
             .with(journal)
             .try_init()
-            .context("install journald tracing subscriber")?;
+            .map_err(|error| anyhow::anyhow!("install journald subscriber: {error}"))?;
     } else {
         tracing_subscriber::fmt()
             .with_env_filter(filter)
             .try_init()
-            .context("install fallback tracing subscriber")?;
+            .map_err(|error| anyhow::anyhow!("install fallback subscriber: {error}"))?;
     }
     Ok(())
 }
