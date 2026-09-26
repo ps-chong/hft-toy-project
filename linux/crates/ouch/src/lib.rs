@@ -1,4 +1,4 @@
-//! SoupBinTCP session and OUCH order gateway.
+//! `SoupBinTCP` session and OUCH order gateway.
 
 use std::{io, net::SocketAddr, time::Duration};
 
