@@ -163,17 +163,14 @@ mod tests {
     #[tokio::test]
     async fn forwards_intent_and_never_waits_for_storage() {
         let mut rpmsg = MockRpmsg::new();
-        rpmsg
-            .expect_receive_intent()
-            .once()
-            .returning(|| {
-                Ok(OrderIntent {
-                    action: OrderAction::Enter,
-                    side: Side::Buy,
-                    user_ref: 7,
-                    ..OrderIntent::default()
-                })
-            });
+        rpmsg.expect_receive_intent().once().returning(|| {
+            Ok(OrderIntent {
+                action: OrderAction::Enter,
+                side: Side::Buy,
+                user_ref: 7,
+                ..OrderIntent::default()
+            })
+        });
         let mut gateway = MockGateway::new();
         gateway
             .expect_send()

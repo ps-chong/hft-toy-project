@@ -36,9 +36,8 @@ fn init_tracing() -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing()?;
-    let rpmsg_path = PathBuf::from(
-        env::var_os("HFT_RPMSG_DEVICE").unwrap_or_else(|| "/dev/rpmsg0".into()),
-    );
+    let rpmsg_path =
+        PathBuf::from(env::var_os("HFT_RPMSG_DEVICE").unwrap_or_else(|| "/dev/rpmsg0".into()));
     let ouch_address: SocketAddr = env::var("HFT_OUCH_ADDR")
         .unwrap_or_else(|_| "127.0.0.1:9001".to_owned())
         .parse()
@@ -73,8 +72,7 @@ async fn main() -> Result<()> {
     });
 
     let control_path = PathBuf::from(
-        env::var_os("HFT_CONTROL_SOCKET")
-            .unwrap_or_else(|| "/run/hftd/control.sock".into()),
+        env::var_os("HFT_CONTROL_SOCKET").unwrap_or_else(|| "/run/hftd/control.sock".into()),
     );
     let (control_tx, _control_rx) = watch::channel(ControlSnapshot::default());
     let control_cancellation = cancellation.clone();
@@ -89,13 +87,7 @@ async fn main() -> Result<()> {
     ));
     let session_id = Uuid::new_v4();
     info!(%session_id, "starting HFT daemon");
-    let daemon = Daemon::new(
-        rpmsg,
-        gateway,
-        storage_tx,
-        cancellation.clone(),
-        session_id,
-    );
+    let daemon = Daemon::new(rpmsg, gateway, storage_tx, cancellation.clone(), session_id);
     let stats = daemon.run().await.context("run HFT actors")?;
     cancellation.cancel();
     storage_task

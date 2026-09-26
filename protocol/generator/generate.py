@@ -27,6 +27,15 @@ def schema_digest() -> str:
     return digest.hexdigest()
 
 
+def rust_hex(value: str) -> str:
+    digits = value.removeprefix("0x")
+    groups: list[str] = []
+    while digits:
+        groups.append(digits[-4:])
+        digits = digits[:-4]
+    return "0x" + "_".join(reversed(groups))
+
+
 def cpp_header(itch: dict[str, Any], registers: dict[str, Any], digest: str) -> str:
     message_lines = "\n".join(
         f"  {message['name']} = '{message['type']}',"
@@ -116,7 +125,7 @@ pub enum ItchType {{
 }}
 
 pub mod reg {{
-    pub const BASE: usize = {registers["base_address"]};
+    pub const BASE: usize = {rust_hex(registers["base_address"])};
 {register_lines}
 }}
 """

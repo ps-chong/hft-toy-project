@@ -21,7 +21,7 @@ pub enum ItchType {
 }
 
 pub mod reg {
-    pub const BASE: usize = 0xA0000000;
+    pub const BASE: usize = 0xA000_0000;
     pub const BUILD_ID: usize = 0x0000;
     pub const ABI_VERSION: usize = 0x0004;
     pub const CONTROL: usize = 0x0008;

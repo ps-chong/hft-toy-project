@@ -217,15 +217,12 @@ mod tests {
             .withf(|packet| packet.packet_type == b'L')
             .once()
             .returning(|_| Ok(()));
-        transport
-            .expect_receive_packet()
-            .once()
-            .returning(|| {
-                Ok(SoupPacket {
-                    packet_type: b'A',
-                    payload: Bytes::new(),
-                })
-            });
+        transport.expect_receive_packet().once().returning(|| {
+            Ok(SoupPacket {
+                packet_type: b'A',
+                payload: Bytes::new(),
+            })
+        });
         transport
             .expect_send_packet()
             .withf(|packet| packet.packet_type == b'U' && packet.payload[0] == b'O')
