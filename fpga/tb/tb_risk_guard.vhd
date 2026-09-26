@@ -21,7 +21,7 @@ architecture tb of tb_risk_guard is
   signal event_ready : std_logic;
   signal approved : market_event_t;
   signal approved_valid : std_logic;
-  signal reject : std_logic;
+  signal reject_i : std_logic;
   signal kill : std_logic := '0';
 begin
   clk <= not clk after CLK_PERIOD / 2;
@@ -41,7 +41,7 @@ begin
       max_quantity => to_unsigned(100, 32),
       price_floor => to_unsigned(10, 64),
       price_ceiling => to_unsigned(1000, 64),
-      reject_pulse => reject
+      reject_pulse => reject_i
     );
 
   main : process
@@ -80,7 +80,7 @@ begin
         wait until rising_edge(clk);
         event_valid <= '0';
         wait for 1 ns;
-        check_equal(reject, '1');
+        check_equal(reject_i, '1');
       elsif run("kill blocks new order but permits cancel") then
         reset_dut;
         kill <= '1';
