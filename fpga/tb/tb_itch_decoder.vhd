@@ -95,8 +95,8 @@ begin
         check_equal(event_o.side, SIDE_BUY);
         check_equal(event_o.feed_sequence, to_unsigned(77, 64));
         check_equal(event_o.timestamp_ns, to_unsigned(123456, 48));
-        check_equal(event_o.order_reference, x"0102030405060708");
-        check_equal(event_o.symbol, x"41434D4520202020");
+        check_equal(event_o.order_reference, unsigned'(x"0102030405060708"));
+        check_equal(event_o.symbol, std_logic_vector'(x"41434D4520202020"));
         check_equal(event_o.quantity, to_unsigned(100, 32));
         check_equal(event_o.price, to_unsigned(1234500, 64));
         check_equal(malformed, '0');
