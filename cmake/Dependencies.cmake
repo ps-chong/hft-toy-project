@@ -16,7 +16,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 
 if(HFT_ENABLE_BOOST)
-  set(BOOST_INCLUDE_LIBRARIES mp11 static_string circular_buffer lockfree)
+  set(BOOST_INCLUDE_LIBRARIES mp11 static_string circular_buffer lockfree outcome)
   set(BOOST_ENABLE_CMAKE ON)
   FetchContent_Declare(
     Boost
