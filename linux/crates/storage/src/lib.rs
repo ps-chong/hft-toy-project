@@ -1,4 +1,4 @@
-//! Batched PostgreSQL persistence outside the latency-critical path.
+//! Batched `PostgreSQL` persistence outside the latency-critical path.
 
 use async_trait::async_trait;
 use hft_analytics::LatencySummary;
