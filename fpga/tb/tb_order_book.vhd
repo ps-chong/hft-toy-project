@@ -54,9 +54,9 @@ begin
     end procedure;
 
     procedure send_event(
-      kind : byte_t;
+      kind : std_logic_vector(7 downto 0);
       reference : natural;
-      side : byte_t;
+      side : std_logic_vector(7 downto 0);
       price : natural;
       quantity : natural
     ) is
