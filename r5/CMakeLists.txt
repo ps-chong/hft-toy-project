@@ -17,6 +17,16 @@ target_compile_definitions(
   hft_r5_core
   INTERFACE BOOST_OUTCOME_FORCE_LEGACY_GCC_BOOST_OUTCOME_C_CONCEPTS=0)
 
+if(CMAKE_CROSSCOMPILING)
+  # Vendor headers intentionally probe undefined feature macros and contain
+  # implementation casts. Keep project warnings strict without promoting those
+  # third-party diagnostics to cross-build failures.
+  target_compile_options(
+    hft_r5_core
+    INTERFACE -Wno-error=undef -Wno-error=cast-align
+              -Wno-error=sign-conversion)
+endif()
+
 if(HFT_ENABLE_CIB)
   if(TARGET cib)
     target_link_libraries(hft_r5_core INTERFACE cib)
