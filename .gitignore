@@ -3,6 +3,7 @@
 /out/
 /coverage-reports/
 /artifacts/
+/vunit_out/
 CMakeUserPresets.json
 compile_commands.json
 
