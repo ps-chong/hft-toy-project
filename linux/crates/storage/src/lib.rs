@@ -12,6 +12,8 @@ use uuid::Uuid;
 pub enum StorageError {
     #[error("database operation failed: {0}")]
     Database(#[from] sqlx::Error),
+    #[error("database migration failed: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
     #[error("numeric value does not fit PostgreSQL BIGINT")]
     NumericRange,
 }
