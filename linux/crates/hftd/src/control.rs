@@ -72,7 +72,7 @@ async fn handle_connection(
     let response = match serde_json::from_str::<Value>(&request) {
         Ok(command) => apply_command(state, &command).map_or_else(
             |message| json!({"ok": false, "error": message}),
-            |_| {
+            |()| {
                 updates.send_replace(state.clone());
                 json!({"ok": true, "state": state})
             },
