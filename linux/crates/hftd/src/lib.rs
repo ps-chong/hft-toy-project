@@ -1,4 +1,4 @@
-//! Single-owner Tokio actors coordinating RPMsg, OUCH, and persistence.
+//! Single-owner Tokio actors coordinating `RPMsg`, OUCH, and persistence.
 
 pub mod control;
 
