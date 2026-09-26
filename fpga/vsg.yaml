@@ -5,7 +5,15 @@ rule:
     disable: true
   process_029:
     disable: true
+  process_016:
+    disable: true
+  process_018:
+    disable: true
   port_010:
     disable: true
   signal_007:
+    disable: true
+  instantiation_034:
+    disable: true
+  instantiation_036:
     disable: true
