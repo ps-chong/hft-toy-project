@@ -1,0 +1,31 @@
+[package]
+name = "hftd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+hft-analytics = { path = "../analytics" }
+hft-ouch = { path = "../ouch" }
+hft-protocol = { path = "../protocol" }
+hft-rpmsg = { path = "../rpmsg" }
+hft-storage = { path = "../storage" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+tracing-journald.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+
+[lints]
+workspace = true
