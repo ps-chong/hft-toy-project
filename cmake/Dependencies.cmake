@@ -29,12 +29,27 @@ endif()
 
 if(HFT_ENABLE_CIB)
   FetchContent_Declare(
-    cib
+    cib_source
     GIT_REPOSITORY https://github.com/intel/compile-time-init-build.git
     GIT_TAG "${HFT_CIB_REVISION}"
     GIT_SHALLOW FALSE
+    SOURCE_SUBDIR _hft_header_only
     EXCLUDE_FROM_ALL)
-  FetchContent_MakeAvailable(cib)
+  FetchContent_Declare(
+    stdx_source
+    GIT_REPOSITORY https://github.com/intel/cpp-std-extensions.git
+    GIT_TAG c932eba
+    GIT_SHALLOW FALSE
+    SOURCE_SUBDIR _hft_header_only
+    EXCLUDE_FROM_ALL)
+  FetchContent_MakeAvailable(cib_source stdx_source)
+
+  add_library(cib INTERFACE)
+  target_include_directories(
+    cib
+    INTERFACE "${cib_source_SOURCE_DIR}/include"
+              "${stdx_source_SOURCE_DIR}/include")
+  target_link_libraries(cib INTERFACE Boost::mp11 fmt::fmt-header-only)
 endif()
 
 if(HFT_BUILD_TESTS)
