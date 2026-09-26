@@ -16,12 +16,12 @@ architecture tb of tb_moldudp64_decoder is
   constant CLK_PERIOD : time := 10 ns;
   signal clk : std_logic := '0';
   signal rst : std_logic := '1';
-  signal data : byte_t := (others => '0');
+  signal data : std_logic_vector(7 downto 0) := (others => '0');
   signal valid : std_logic := '0';
   signal sop : std_logic := '0';
   signal eop : std_logic := '0';
   signal ready : std_logic;
-  signal out_data : byte_t;
+  signal out_data : std_logic_vector(7 downto 0);
   signal out_valid : std_logic;
   signal out_sop : std_logic;
   signal out_eop : std_logic;
@@ -31,9 +31,9 @@ architecture tb of tb_moldudp64_decoder is
   signal heartbeat : std_logic;
   signal expected : unsigned(63 downto 0);
   signal output_count : natural := 0;
-  signal first_output : byte_t := (others => '0');
+  signal first_output : std_logic_vector(7 downto 0) := (others => '0');
 
-  type byte_array_t is array (natural range <>) of byte_t;
+  type byte_array_t is array (natural range <>) of std_logic_vector(7 downto 0);
   constant MOLD_ADD : byte_array_t := (
     x"54", x"45", x"53", x"54", x"53", x"45", x"53", x"53", x"30", x"31",
     x"00", x"00", x"00", x"00", x"00", x"00", x"00", x"01", x"00", x"01",
