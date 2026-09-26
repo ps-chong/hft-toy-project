@@ -20,7 +20,7 @@ package hft_types_pkg is
   type market_event_t is record
     kind            : byte_t;
     side            : byte_t;
-    sequence        : unsigned(63 downto 0);
+    feed_sequence   : unsigned(63 downto 0);
     timestamp_ns    : unsigned(47 downto 0);
     order_reference : unsigned(63 downto 0);
     symbol          : symbol_t;
@@ -31,7 +31,7 @@ package hft_types_pkg is
   constant MARKET_EVENT_RESET : market_event_t := (
     kind            => EVENT_NONE,
     side            => (others => '0'),
-    sequence        => (others => '0'),
+    feed_sequence   => (others => '0'),
     timestamp_ns    => (others => '0'),
     order_reference => (others => '0'),
     symbol          => (others => '0'),
@@ -43,7 +43,7 @@ package hft_types_pkg is
     action       : byte_t;
     side         : byte_t;
     user_ref     : unsigned(31 downto 0);
-    sequence     : unsigned(63 downto 0);
+    source_sequence : unsigned(63 downto 0);
     timestamp_ns : unsigned(63 downto 0);
     symbol       : symbol_t;
     price        : unsigned(63 downto 0);
@@ -54,7 +54,7 @@ package hft_types_pkg is
     action       => EVENT_NONE,
     side         => (others => '0'),
     user_ref     => (others => '0'),
-    sequence     => (others => '0'),
+    source_sequence => (others => '0'),
     timestamp_ns => (others => '0'),
     symbol       => (others => '0'),
     price        => (others => '0'),

@@ -58,7 +58,7 @@ architecture rtl of zcu102_hft_top is
 begin
   m_event_kind <= event_i.kind;
   m_event_side <= event_i.side;
-  m_event_sequence <= std_logic_vector(event_i.sequence);
+  m_event_sequence <= std_logic_vector(event_i.feed_sequence);
   m_event_timestamp <= std_logic_vector(event_i.timestamp_ns);
   m_event_reference <= std_logic_vector(event_i.order_reference);
   m_event_symbol <= event_i.symbol;

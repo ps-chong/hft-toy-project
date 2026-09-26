@@ -20,7 +20,7 @@ architecture tb of tb_itch_decoder is
   signal valid : std_logic := '0';
   signal sop : std_logic := '0';
   signal eop : std_logic := '0';
-  signal sequence : unsigned(63 downto 0) := (others => '0');
+  signal sequence_i : unsigned(63 downto 0) := (others => '0');
   signal ready : std_logic;
   signal event_o : market_event_t;
   signal event_valid : std_logic;
@@ -46,7 +46,7 @@ begin
       s_valid => valid,
       s_sop => sop,
       s_eop => eop,
-      s_sequence => sequence,
+      s_sequence => sequence_i,
       s_ready => ready,
       event_out => event_o,
       event_valid => event_valid,
@@ -87,13 +87,13 @@ begin
     while test_suite loop
       if run("decodes add order") then
         reset_dut;
-        sequence <= to_unsigned(77, 64);
+        sequence_i <= to_unsigned(77, 64);
         send_message(ADD_ORDER);
         wait for 1 ns;
         check_equal(event_valid, '1');
         check_equal(event_o.kind, EVENT_ADD);
         check_equal(event_o.side, SIDE_BUY);
-        check_equal(event_o.sequence, to_unsigned(77, 64));
+        check_equal(event_o.feed_sequence, to_unsigned(77, 64));
         check_equal(event_o.timestamp_ns, to_unsigned(123456, 48));
         check_equal(event_o.order_reference, x"0102030405060708");
         check_equal(event_o.symbol, x"41434D4520202020");
