@@ -3,7 +3,7 @@ param(
     [ValidateSet("sim-dma", "sfp10g")]
     [string]$Profile = "sim-dma",
     [string]$VivadoRoot = "C:\AMDDesignTools\2026.1\Vivado",
-    [switch]$SynthesisOnly
+    [switch]$Bitstream
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,7 +21,7 @@ $args = @(
     "-nolog",
     "-source", $script,
     "-tclargs", $repoRoot, $output, $Profile,
-    $(if ($SynthesisOnly) { "synth" } else { "bitstream" })
+    $(if ($Bitstream) { "bitstream" } else { "synth" })
 )
 
 Write-Host "Running Vivado profile '$Profile' in '$output'."
