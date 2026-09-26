@@ -39,7 +39,7 @@ TEST(RiskEngine, AppliesCompileTimeRuleSetAndRevision) {
   hft::RiskEngine engine{armed_config()};
   auto result = engine.check(intent(1));
   ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(result.value().risk_revision, 7);
+  EXPECT_EQ(result.assume_value().risk_revision, 7);
   EXPECT_EQ(engine.state().open_orders, 1);
 }
 
@@ -49,20 +49,20 @@ TEST(RiskEngine, RejectsKilledOversizedAndUnknownSymbol) {
   hft::RiskEngine killed{config};
   auto killed_result = killed.check(intent(1));
   ASSERT_FALSE(killed_result);
-  EXPECT_EQ(killed_result.error(), hft::RiskError::killed);
+  EXPECT_EQ(killed_result.assume_error(), hft::RiskError::killed);
 
   hft::RiskEngine engine{armed_config()};
   auto oversized = intent(1);
   oversized.quantity = 101;
   auto oversized_result = engine.check(oversized);
   ASSERT_FALSE(oversized_result);
-  EXPECT_EQ(oversized_result.error(), hft::RiskError::quantity_limit);
+  EXPECT_EQ(oversized_result.assume_error(), hft::RiskError::quantity_limit);
 
   auto unknown = intent(2);
   unknown.symbol = hft::make_symbol("OTHER");
   auto unknown_result = engine.check(unknown);
   ASSERT_FALSE(unknown_result);
-  EXPECT_EQ(unknown_result.error(), hft::RiskError::symbol_disabled);
+  EXPECT_EQ(unknown_result.assume_error(), hft::RiskError::symbol_disabled);
 }
 
 TEST(RiskEngine, RejectsStaleSequenceAndRateBurst) {
@@ -71,12 +71,12 @@ TEST(RiskEngine, RejectsStaleSequenceAndRateBurst) {
 
   auto stale = engine.check(intent(1, 2));
   ASSERT_FALSE(stale);
-  EXPECT_EQ(stale.error(), hft::RiskError::stale_sequence);
+  EXPECT_EQ(stale.assume_error(), hft::RiskError::stale_sequence);
 
   ASSERT_TRUE(engine.check(intent(2, 2)));
   auto burst = engine.check(intent(3, 3));
   ASSERT_FALSE(burst);
-  EXPECT_EQ(burst.error(), hft::RiskError::rate_limit);
+  EXPECT_EQ(burst.assume_error(), hft::RiskError::rate_limit);
 
   auto next_window = engine.check(intent(4, 101));
   EXPECT_TRUE(next_window);
@@ -91,7 +91,7 @@ TEST(RiskEngine, TracksOpenOrders) {
   ASSERT_TRUE(engine.check(intent(1)));
   auto full = engine.check(intent(2));
   ASSERT_FALSE(full);
-  EXPECT_EQ(full.error(), hft::RiskError::open_order_limit);
+  EXPECT_EQ(full.assume_error(), hft::RiskError::open_order_limit);
 
   engine.on_order_closed();
   EXPECT_TRUE(engine.check(intent(3)));
