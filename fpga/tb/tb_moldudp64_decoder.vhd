@@ -127,7 +127,7 @@ begin
         send_packet(MOLD_ADD);
         wait for 1 ns;
         check_equal(output_count, 36);
-        check_equal(first_output, x"41");
+        check_equal(first_output, std_logic_vector'(x"41"));
         check_equal(out_sequence, to_unsigned(1, 64));
         check_equal(expected, to_unsigned(2, 64));
         check_equal(malformed, '0');
