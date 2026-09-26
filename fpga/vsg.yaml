@@ -1,6 +1,6 @@
 rule:
   global:
-    indentSize: 2
+    indent_size: 2
   architecture_004:
     disable: true
   process_029:
