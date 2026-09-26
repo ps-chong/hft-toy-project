@@ -1,0 +1,23 @@
+[package]
+name = "hft-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+hft-analytics = { path = "../analytics" }
+hft-protocol = { path = "../protocol" }
+serde.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
