@@ -42,7 +42,7 @@ architecture rtl of moldudp64_decoder is
   signal count_high         : byte_t := (others => '0');
   signal message_count      : natural range 0 to 65535 := 0;
   signal message_number     : natural range 0 to 65535 := 0;
-  signal length_high        : byte_t := (others => '0');
+  signal message_length_high : byte_t := (others => '0');
   signal message_remaining  : natural range 0 to 65535 := 0;
   signal message_index      : natural range 0 to 65535 := 0;
 begin
@@ -74,7 +74,7 @@ begin
         count_high <= (others => '0');
         message_count <= 0;
         message_number <= 0;
-        length_high <= (others => '0');
+        message_length_high <= (others => '0');
         message_remaining <= 0;
         message_index <= 0;
       elsif s_valid = '1' and s_ready = '1' then
@@ -146,12 +146,12 @@ begin
               malformed_pulse <= '1';
               state <= HEADER;
             else
-              length_high <= s_data;
+              message_length_high <= s_data;
               state <= LENGTH_LOW;
             end if;
 
           when LENGTH_LOW =>
-            length_value := to_integer(unsigned(length_high & s_data));
+            length_value := to_integer(unsigned(message_length_high & s_data));
             if length_value = 0 or s_eop = '1' then
               malformed_pulse <= '1';
               state <= HEADER;
