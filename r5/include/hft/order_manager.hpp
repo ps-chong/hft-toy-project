@@ -78,10 +78,10 @@ public:
 
     auto checked = risk_.check(*candidate);
     if (!checked) {
-      last_risk_error_ = checked.error();
+      last_risk_error_ = checked.assume_error();
       return boost::outcome_v2::failure(ProcessingError::risk_rejected);
     }
-    return std::optional{checked.value()};
+    return std::optional{checked.assume_value()};
   }
 
   [[nodiscard]] constexpr auto last_risk_error() const noexcept
