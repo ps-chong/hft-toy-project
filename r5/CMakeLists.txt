@@ -41,7 +41,6 @@ if(CMAKE_CROSSCOMPILING)
   target_link_libraries(hft_r5_firmware PRIVATE hft::r5_core)
   target_link_options(hft_r5_firmware PRIVATE
                       --specs=nosys.specs
-                      --specs=nano.specs
                       "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/hft_r5_firmware.map")
   set_target_properties(hft_r5_firmware PROPERTIES SUFFIX ".elf")
 else()
