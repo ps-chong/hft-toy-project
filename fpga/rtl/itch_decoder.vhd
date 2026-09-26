@@ -74,7 +74,7 @@ begin
           if s_sop = '1' then
             event_r <= MARKET_EVENT_RESET;
             event_r.kind <= s_data;
-            event_r.sequence <= s_sequence;
+            event_r.feed_sequence <= s_sequence;
             byte_index <= 0;
           end if;
 

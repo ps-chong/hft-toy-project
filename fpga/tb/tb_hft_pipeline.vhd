@@ -121,7 +121,7 @@ begin
         check_equal(event_o.kind, EVENT_ADD);
         check_equal(event_o.quantity, to_unsigned(100, 32));
         check_equal(event_o.price, to_unsigned(1234500, 64));
-        check_equal(event_o.sequence, to_unsigned(1, 64));
+        check_equal(event_o.feed_sequence, to_unsigned(1, 64));
         check_equal(expected, to_unsigned(2, 64));
         check_equal(killed, '0');
         check_equal(malformed, '0');
