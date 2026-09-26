@@ -8,7 +8,7 @@
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/list.hpp>
-#include <boost/outcome/result.hpp>
+#include <boost/outcome/basic_result.hpp>
 
 #include "hft/types.hpp"
 
@@ -173,7 +173,9 @@ using DefaultRiskRules =
 
 template <typename RuleList = DefaultRiskRules> class RiskEngine {
 public:
-  using result_type = boost::outcome_v2::result<OrderIntent, RiskError>;
+  using result_type =
+      boost::outcome_v2::basic_result<OrderIntent, RiskError,
+                                      boost::outcome_v2::policy::all_narrow>;
 
   constexpr explicit RiskEngine(RiskConfig config = {}) noexcept : config_(config) {}
 

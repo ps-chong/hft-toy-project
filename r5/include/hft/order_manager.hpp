@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <optional>
 
-#include <boost/outcome/result.hpp>
+#include <boost/outcome/basic_result.hpp>
 
 #include "hft/risk_engine.hpp"
 #include "hft/types.hpp"
@@ -49,7 +49,9 @@ template <typename Clock, typename Risk = RiskEngine<>,
 class OrderManager {
 public:
   using result_type =
-      boost::outcome_v2::result<std::optional<OrderIntent>, ProcessingError>;
+      boost::outcome_v2::basic_result<
+          std::optional<OrderIntent>, ProcessingError,
+          boost::outcome_v2::policy::all_narrow>;
 
   constexpr OrderManager(Clock& clock, Risk& risk, StrategyPolicy strategy = {}) noexcept
       : clock_(clock), risk_(risk), strategy_(strategy) {}
