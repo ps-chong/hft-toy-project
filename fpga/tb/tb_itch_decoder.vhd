@@ -16,7 +16,7 @@ architecture tb of tb_itch_decoder is
   constant CLK_PERIOD : time := 10 ns;
   signal clk : std_logic := '0';
   signal rst : std_logic := '1';
-  signal data : byte_t := (others => '0');
+  signal data : std_logic_vector(7 downto 0) := (others => '0');
   signal valid : std_logic := '0';
   signal sop : std_logic := '0';
   signal eop : std_logic := '0';
@@ -27,7 +27,7 @@ architecture tb of tb_itch_decoder is
   signal malformed : std_logic;
   signal unknown : std_logic;
 
-  type byte_array_t is array (natural range <>) of byte_t;
+  type byte_array_t is array (natural range <>) of std_logic_vector(7 downto 0);
   constant ADD_ORDER : byte_array_t := (
     x"41", x"00", x"01", x"00", x"02", x"00", x"00", x"00", x"01", x"E2", x"40",
     x"01", x"02", x"03", x"04", x"05", x"06", x"07", x"08", x"42",
