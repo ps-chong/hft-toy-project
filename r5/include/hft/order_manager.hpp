@@ -2,8 +2,9 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <expected>
 #include <optional>
+
+#include <boost/outcome/result.hpp>
 
 #include "hft/risk_engine.hpp"
 #include "hft/types.hpp"
@@ -47,16 +48,18 @@ template <typename Clock, typename Risk = RiskEngine<>,
           typename StrategyPolicy = MirrorStrategy>
 class OrderManager {
 public:
+  using result_type =
+      boost::outcome_v2::result<std::optional<OrderIntent>, ProcessingError>;
+
   constexpr OrderManager(Clock& clock, Risk& risk, StrategyPolicy strategy = {}) noexcept
       : clock_(clock), risk_(risk), strategy_(strategy) {}
 
-  [[nodiscard]] auto on_event(MarketEvent const& event) noexcept
-      -> std::expected<std::optional<OrderIntent>, ProcessingError> {
+  [[nodiscard]] auto on_event(MarketEvent const& event) noexcept -> result_type {
     if (event.abi_version != ipc_abi_version) {
-      return std::unexpected{ProcessingError::abi_mismatch};
+      return boost::outcome_v2::failure(ProcessingError::abi_mismatch);
     }
     if (event.sequence <= last_event_sequence_) {
-      return std::unexpected{ProcessingError::stale_event};
+      return boost::outcome_v2::failure(ProcessingError::stale_event);
     }
     last_event_sequence_ = event.sequence;
 
@@ -76,7 +79,7 @@ public:
     auto checked = risk_.check(*candidate);
     if (!checked) {
       last_risk_error_ = checked.error();
-      return std::unexpected{ProcessingError::risk_rejected};
+      return boost::outcome_v2::failure(ProcessingError::risk_rejected);
     }
     return std::optional{*checked};
   }

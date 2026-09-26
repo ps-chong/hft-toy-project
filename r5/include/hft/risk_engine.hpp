@@ -4,11 +4,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 #include <optional>
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/list.hpp>
+#include <boost/outcome/result.hpp>
 
 #include "hft/types.hpp"
 
@@ -173,6 +173,8 @@ using DefaultRiskRules =
 
 template <typename RuleList = DefaultRiskRules> class RiskEngine {
 public:
+  using result_type = boost::outcome_v2::result<OrderIntent, RiskError>;
+
   constexpr explicit RiskEngine(RiskConfig config = {}) noexcept : config_(config) {}
 
   constexpr auto update_config(RiskConfig config) noexcept -> void { config_ = config; }
@@ -183,8 +185,7 @@ public:
 
   [[nodiscard]] constexpr auto state() const noexcept -> RiskState const& { return state_; }
 
-  [[nodiscard]] constexpr auto check(OrderIntent intent) noexcept
-      -> std::expected<OrderIntent, RiskError> {
+  [[nodiscard]] constexpr auto check(OrderIntent intent) noexcept -> result_type {
     std::optional<RiskError> failure;
     boost::mp11::mp_for_each<RuleList>([&](auto rule) {
       if (!failure) {
@@ -192,7 +193,7 @@ public:
       }
     });
     if (failure) {
-      return std::unexpected{*failure};
+      return boost::outcome_v2::failure(*failure);
     }
 
     intent.risk_revision = config_.revision;
