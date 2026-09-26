@@ -81,7 +81,7 @@ public:
       last_risk_error_ = checked.error();
       return boost::outcome_v2::failure(ProcessingError::risk_rejected);
     }
-    return std::optional{*checked};
+    return std::optional{checked.value()};
   }
 
   [[nodiscard]] constexpr auto last_risk_error() const noexcept

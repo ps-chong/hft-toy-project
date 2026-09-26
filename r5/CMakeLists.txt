@@ -13,6 +13,9 @@ if(NOT HFT_ENABLE_BOOST)
   message(FATAL_ERROR "The R5 core requires the pinned Boost.MP11 headers")
 endif()
 target_link_libraries(hft_r5_core INTERFACE Boost::mp11 Boost::outcome)
+target_compile_definitions(
+  hft_r5_core
+  INTERFACE BOOST_OUTCOME_FORCE_LEGACY_GCC_BOOST_OUTCOME_C_CONCEPTS=0)
 
 if(HFT_ENABLE_CIB)
   if(TARGET cib)

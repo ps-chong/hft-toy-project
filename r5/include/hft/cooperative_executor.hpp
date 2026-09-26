@@ -44,11 +44,11 @@ public:
         ++stats_.rejected;
         continue;
       }
-      if (!*result) {
+      if (!result.value()) {
         ++stats_.ignored;
         continue;
       }
-      if (!intents_.try_push(std::move(**result))) {
+      if (!intents_.try_push(std::move(*result.value()))) {
         ++stats_.output_overflows;
         fault_latched_ = true;
         auto fail_closed = configuration_.load();

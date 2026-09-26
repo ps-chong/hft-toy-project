@@ -39,7 +39,7 @@ TEST(RiskEngine, AppliesCompileTimeRuleSetAndRevision) {
   hft::RiskEngine engine{armed_config()};
   auto result = engine.check(intent(1));
   ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(result->risk_revision, 7);
+  EXPECT_EQ(result.value().risk_revision, 7);
   EXPECT_EQ(engine.state().open_orders, 1);
 }
 
