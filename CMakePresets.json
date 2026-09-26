@@ -1,0 +1,95 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "HFT_BUILD_TESTS": "ON",
+        "HFT_ENABLE_BOOST": "ON"
+      }
+    },
+    {
+      "name": "host-clang-debug",
+      "inherits": "base",
+      "displayName": "Host Clang Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "HFT_ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "host-gcc-cxx26",
+      "inherits": "base",
+      "displayName": "Host GCC C++26 reference build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_STANDARD": "26",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "host-coverage",
+      "inherits": "base",
+      "displayName": "Host GCC coverage",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "HFT_ENABLE_COVERAGE": "ON"
+      }
+    },
+    {
+      "name": "r5-release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-r5.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "HFT_BUILD_TESTS": "OFF",
+        "HFT_ENABLE_BOOST": "ON",
+        "HFT_ENABLE_CIB": "ON"
+      }
+    },
+    {
+      "name": "a53-sdk",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/aarch64-linux.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "HFT_BUILD_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {"name": "host-clang-debug", "configurePreset": "host-clang-debug"},
+    {"name": "host-gcc-cxx26", "configurePreset": "host-gcc-cxx26"},
+    {"name": "host-coverage", "configurePreset": "host-coverage"},
+    {"name": "r5-release", "configurePreset": "r5-release"},
+    {"name": "a53-sdk", "configurePreset": "a53-sdk"}
+  ],
+  "testPresets": [
+    {
+      "name": "host-clang-debug",
+      "configurePreset": "host-clang-debug",
+      "output": {"outputOnFailure": true}
+    },
+    {
+      "name": "host-coverage",
+      "configurePreset": "host-coverage",
+      "output": {"outputOnFailure": true}
+    }
+  ]
+}

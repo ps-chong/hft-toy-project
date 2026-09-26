@@ -1,3 +1,63 @@
+# Build outputs
+/build/
+/out/
+/coverage-reports/
+/artifacts/
+CMakeUserPresets.json
+compile_commands.json
+
+# FPGA-generated state
+/.Xil/
+*.jou
+*.log
+*.str
+*.wdb
+*.vcd
+*.bit
+*.bin
+*.xsa
+*.runs/
+*.cache/
+*.gen/
+*.hw/
+*.ip_user_files/
+
+# C/C++
+*.o
+*.a
+*.elf
+*.map
+*.gcda
+*.gcno
+
+# Rust
+/target/
+**/target/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+
+# Yocto
+/yocto/build/
+/yocto/downloads/
+/yocto/sstate-cache/
+
+# Local tools and editor state
+/agent-tools/
+.idea/
+.vscode/*.log
+
+# Private signing material
+*.key
+*.pem
+!deploy/swupdate/keys/README.md
 # Prerequisites
 *.d
 

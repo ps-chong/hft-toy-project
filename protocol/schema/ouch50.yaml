@@ -1,0 +1,30 @@
+{
+  "name": "Nasdaq OUCH",
+  "version": "5.0",
+  "byte_order": "big",
+  "requests": [
+    {
+      "name": "enter_order",
+      "type": "O",
+      "fields": [
+        {"name": "user_ref", "offset": 1, "size": 4, "type": "u32"},
+        {"name": "side", "offset": 5, "size": 1, "type": "ascii"},
+        {"name": "quantity", "offset": 6, "size": 4, "type": "u32"},
+        {"name": "symbol", "offset": 10, "size": 8, "type": "ascii"},
+        {"name": "price", "offset": 18, "size": 8, "type": "u64"},
+        {"name": "time_in_force", "offset": 26, "size": 1, "type": "u8"}
+      ],
+      "toy_length": 27
+    },
+    {"name": "replace_order", "type": "U", "toy_length": 21},
+    {"name": "cancel_order", "type": "X", "toy_length": 9}
+  ],
+  "responses": [
+    {"name": "accepted", "type": "A"},
+    {"name": "replaced", "type": "U"},
+    {"name": "canceled", "type": "C"},
+    {"name": "executed", "type": "E"},
+    {"name": "rejected", "type": "J"}
+  ],
+  "note": "The toy simulator preserves OUCH message semantics while limiting optional fields. SoupBinTCP framing and recovery are implemented exactly."
+}

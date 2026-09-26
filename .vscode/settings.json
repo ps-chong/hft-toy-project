@@ -1,0 +1,13 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.configureOnOpen": false,
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/host-clang-debug/compile_commands.json",
+  "rust-analyzer.linkedProjects": [
+    "${workspaceFolder}/Cargo.toml"
+  ],
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "files.exclude": {
+    "**/build": true,
+    "**/target": true
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "HFT PL-R5-A53 IPC",
+  "version": 1,
+  "byte_order": "little",
+  "cache_line_size": 64,
+  "normalized_event": {
+    "size": 64,
+    "fields": [
+      {"name": "abi_version", "offset": 0, "size": 2, "type": "u16"},
+      {"name": "kind", "offset": 2, "size": 1, "type": "u8"},
+      {"name": "side", "offset": 3, "size": 1, "type": "u8"},
+      {"name": "flags", "offset": 4, "size": 4, "type": "u32"},
+      {"name": "sequence", "offset": 8, "size": 8, "type": "u64"},
+      {"name": "timestamp_ns", "offset": 16, "size": 8, "type": "u64"},
+      {"name": "order_reference", "offset": 24, "size": 8, "type": "u64"},
+      {"name": "symbol", "offset": 32, "size": 8, "type": "ascii"},
+      {"name": "price", "offset": 40, "size": 8, "type": "u64"},
+      {"name": "quantity", "offset": 48, "size": 4, "type": "u32"},
+      {"name": "reserved", "offset": 52, "size": 12, "type": "bytes"}
+    ]
+  },
+  "order_intent": {
+    "size": 64,
+    "fields": [
+      {"name": "abi_version", "offset": 0, "size": 2, "type": "u16"},
+      {"name": "action", "offset": 2, "size": 1, "type": "u8"},
+      {"name": "side", "offset": 3, "size": 1, "type": "u8"},
+      {"name": "user_ref", "offset": 4, "size": 4, "type": "u32"},
+      {"name": "source_sequence", "offset": 8, "size": 8, "type": "u64"},
+      {"name": "decision_timestamp_ns", "offset": 16, "size": 8, "type": "u64"},
+      {"name": "symbol", "offset": 24, "size": 8, "type": "ascii"},
+      {"name": "price", "offset": 32, "size": 8, "type": "u64"},
+      {"name": "quantity", "offset": 40, "size": 4, "type": "u32"},
+      {"name": "risk_revision", "offset": 44, "size": 4, "type": "u32"},
+      {"name": "reserved", "offset": 48, "size": 16, "type": "bytes"}
+    ]
+  },
+  "rings": {
+    "pl_to_r5_depth": 1024,
+    "r5_to_a53_depth": 256,
+    "telemetry_depth": 512
+  }
+}

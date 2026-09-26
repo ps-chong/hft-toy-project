@@ -1,0 +1,41 @@
+{
+  "name": "Nasdaq TotalView-ITCH",
+  "version": "5.0",
+  "byte_order": "big",
+  "common_prefix": [
+    {"name": "message_type", "offset": 0, "size": 1, "type": "ascii"},
+    {"name": "stock_locate", "offset": 1, "size": 2, "type": "u16"},
+    {"name": "tracking_number", "offset": 3, "size": 2, "type": "u16"},
+    {"name": "timestamp", "offset": 5, "size": 6, "type": "u48"}
+  ],
+  "messages": [
+    {"name": "system_event", "type": "S", "length": 12},
+    {"name": "stock_directory", "type": "R", "length": 39},
+    {
+      "name": "add_order",
+      "type": "A",
+      "length": 36,
+      "fields": [
+        {"name": "order_reference", "offset": 11, "size": 8, "type": "u64"},
+        {"name": "side", "offset": 19, "size": 1, "type": "ascii"},
+        {"name": "shares", "offset": 20, "size": 4, "type": "u32"},
+        {"name": "stock", "offset": 24, "size": 8, "type": "ascii"},
+        {"name": "price", "offset": 32, "size": 4, "type": "u32"}
+      ]
+    },
+    {"name": "add_order_mpid", "type": "F", "length": 40},
+    {"name": "order_executed", "type": "E", "length": 31},
+    {"name": "order_executed_with_price", "type": "C", "length": 36},
+    {"name": "order_cancel", "type": "X", "length": 23},
+    {"name": "order_delete", "type": "D", "length": 19},
+    {"name": "order_replace", "type": "U", "length": 35},
+    {"name": "trade", "type": "P", "length": 44},
+    {"name": "cross_trade", "type": "Q", "length": 40}
+  ],
+  "fail_closed_on": [
+    "truncated_message",
+    "length_mismatch",
+    "sequence_gap",
+    "book_capacity_exceeded"
+  ]
+}

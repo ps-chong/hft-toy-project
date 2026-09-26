@@ -1,0 +1,20 @@
+{
+  "name": "MoldUDP64",
+  "version": "1.00",
+  "byte_order": "big",
+  "header_size": 20,
+  "fields": [
+    {"name": "session", "offset": 0, "size": 10, "type": "ascii"},
+    {"name": "sequence", "offset": 10, "size": 8, "type": "u64"},
+    {"name": "message_count", "offset": 18, "size": 2, "type": "u16"}
+  ],
+  "message_block": {
+    "length_size": 2,
+    "length_type": "u16",
+    "length_includes_prefix": false
+  },
+  "special_counts": {
+    "heartbeat": 0,
+    "end_of_session": 65535
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_sha256": "5a47d5ed846bbf3b4b9a7e8d764e281bd5ad839b88d20d9cb28e7e5070d18658",
+  "vectors": [
+    {
+      "file": "mold_add_order.bin",
+      "messages": 1,
+      "sequence": 1,
+      "valid": true
+    },
+    {
+      "file": "mold_cancel.bin",
+      "messages": 1,
+      "sequence": 2,
+      "valid": true
+    },
+    {
+      "file": "mold_heartbeat.bin",
+      "messages": 0,
+      "sequence": 3,
+      "valid": true
+    },
+    {
+      "file": "mold_truncated.bin",
+      "messages": 1,
+      "sequence": 1,
+      "valid": false
+    }
+  ]
+}

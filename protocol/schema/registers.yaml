@@ -1,0 +1,22 @@
+{
+  "name": "HFT PL control/status",
+  "version": 1,
+  "base_address": "0xA0000000",
+  "span": "0x00010000",
+  "registers": [
+    {"name": "BUILD_ID", "offset": "0x0000", "access": "ro", "reset": "0x48544654", "description": "ASCII HFTT"},
+    {"name": "ABI_VERSION", "offset": "0x0004", "access": "ro", "reset": 1},
+    {"name": "CONTROL", "offset": "0x0008", "access": "rw", "reset": 1, "bits": {"enable": 0, "kill": 1, "clear_counters": 2}},
+    {"name": "STATUS", "offset": "0x000C", "access": "ro", "reset": 0, "bits": {"link_up": 0, "stale": 1, "overflow": 2, "killed": 3}},
+    {"name": "EXPECTED_SEQUENCE_LO", "offset": "0x0010", "access": "ro", "reset": 0},
+    {"name": "EXPECTED_SEQUENCE_HI", "offset": "0x0014", "access": "ro", "reset": 0},
+    {"name": "PACKET_COUNT_LO", "offset": "0x0018", "access": "ro", "reset": 0},
+    {"name": "PACKET_COUNT_HI", "offset": "0x001C", "access": "ro", "reset": 0},
+    {"name": "DROP_COUNT", "offset": "0x0020", "access": "ro", "reset": 0},
+    {"name": "MALFORMED_COUNT", "offset": "0x0024", "access": "ro", "reset": 0},
+    {"name": "GAP_COUNT", "offset": "0x0028", "access": "ro", "reset": 0},
+    {"name": "RISK_MAX_QTY", "offset": "0x0040", "access": "rw", "reset": 1000},
+    {"name": "RISK_PRICE_FLOOR", "offset": "0x0048", "access": "rw", "reset": 1},
+    {"name": "RISK_PRICE_CEILING", "offset": "0x0050", "access": "rw", "reset": 1000000000}
+  ]
+}
