@@ -1,0 +1,15 @@
+{
+  "amd_release": "2026.1",
+  "arm_gnu_toolchain": "13.3.Rel1",
+  "boost": "1.92.0",
+  "cmake_minimum": "3.28.0",
+  "compile_time_init_build": "a0d79ca83ec31270ce59d4c485969e552be4dbda",
+  "fmt": "12.0.0",
+  "freertos_xilinx": "10.6.1",
+  "googletest": "1.17.0",
+  "ninja_minimum": "1.12.0",
+  "rust": "1.97.1",
+  "vivado": "2026.1",
+  "yocto": "5.0.16",
+  "yocto_codename": "scarthgap"
+}

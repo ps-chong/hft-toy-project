@@ -1,0 +1,23 @@
+{
+  "name": "SoupBinTCP",
+  "version": "4.00",
+  "byte_order": "big",
+  "packet_header": [
+    {"name": "packet_length", "offset": 0, "size": 2, "type": "u16"},
+    {"name": "packet_type", "offset": 2, "size": 1, "type": "ascii"}
+  ],
+  "packet_types": {
+    "login_request": "L",
+    "login_accepted": "A",
+    "login_rejected": "J",
+    "sequenced_data": "S",
+    "unsequenced_data": "U",
+    "server_heartbeat": "H",
+    "client_heartbeat": "R",
+    "logout_request": "O",
+    "end_of_session": "Z",
+    "debug": "+"
+  },
+  "heartbeat_interval_ms": 1000,
+  "peer_timeout_ms": 15000
+}

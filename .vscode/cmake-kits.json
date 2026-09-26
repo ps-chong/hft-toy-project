@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Host Clang",
+    "compilers": {
+      "C": "clang",
+      "CXX": "clang++"
+    }
+  },
+  {
+    "name": "Host GCC C++26",
+    "compilers": {
+      "C": "gcc",
+      "CXX": "g++"
+    }
+  },
+  {
+    "name": "Arm Cortex-R5 (ARM_GNU_TOOLCHAIN_ROOT)",
+    "toolchainFile": "${workspaceFolder}/cmake/toolchains/arm-r5.cmake"
+  },
+  {
+    "name": "AArch64 Yocto SDK",
+    "toolchainFile": "${workspaceFolder}/cmake/toolchains/aarch64-linux.cmake"
+  }
+]

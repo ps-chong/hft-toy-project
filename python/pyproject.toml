@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hft-tools"
+version = "0.1.0"
+description = "Simulator and diagnostics for the ZCU102 HFT reference design"
+requires-python = ">=3.12"
+dependencies = [
+  "rich>=14.0",
+  "textual>=5.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "coverage>=7.10",
+  "hypothesis>=6.138",
+  "mypy>=1.18",
+  "pytest>=8.4",
+  "pytest-cov>=6.2",
+  "ruff>=0.13"
+]
+
+[project.scripts]
+hft-exchange-sim = "hft_tools.exchange_sim:main"
+hft-pcap-replay = "hft_tools.pcap_replay:main"
+hft-dashboard = "hft_tools.dashboard:main"
+hft-regdump = "hft_tools.regdump:main"
+hft-latency-report = "hft_tools.latency_report:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hft_tools"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["hft_tools"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["hft_tools"]

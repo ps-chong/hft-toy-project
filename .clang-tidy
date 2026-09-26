@@ -1,0 +1,17 @@
+Checks: >-
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-owning-memory,
+  cppcoreguidelines-pro-type-member-init,
+  modernize-*,
+  performance-*,
+  readability-avoid-const-params-in-decls,
+  readability-const-return-type,
+  readability-container-size-empty
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(^|/)(r5|protocol)/'
+CheckOptions:
+  modernize-use-trailing-return-type.TransformLambda: false
+  performance-unnecessary-value-param.AllowedTypes: 'std::span;std::string_view'
