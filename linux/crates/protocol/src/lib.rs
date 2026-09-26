@@ -359,9 +359,9 @@ fn read_u48(bytes: &[u8]) -> Result<u64, ProtocolError> {
     if bytes.len() != 6 {
         return Err(ProtocolError::InvalidLength);
     }
-    Ok(bytes.iter().fold(0_u64, |value, byte| {
-        (value << 8) | u64::from(*byte)
-    }))
+    Ok(bytes
+        .iter()
+        .fold(0_u64, |value, byte| (value << 8) | u64::from(*byte)))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -419,8 +419,7 @@ pub fn encode_enter_order(intent: &OrderIntent) -> Result<Bytes, ProtocolError> 
 mod tests {
     use super::*;
 
-    const ADD_VECTOR: &[u8] =
-        include_bytes!("../../../../protocol/vectors/mold_add_order.bin");
+    const ADD_VECTOR: &[u8] = include_bytes!("../../../../protocol/vectors/mold_add_order.bin");
     const TRUNCATED_VECTOR: &[u8] =
         include_bytes!("../../../../protocol/vectors/mold_truncated.bin");
 

@@ -79,10 +79,9 @@ impl Repository for NullRepository {
 #[async_trait]
 impl Repository for PgRepository {
     async fn store_order(&self, order: &PersistedOrder) -> Result<(), StorageError> {
-        let source_sequence = i64::try_from(order.intent.source_sequence)
-            .map_err(|_| StorageError::NumericRange)?;
-        let price =
-            i64::try_from(order.intent.price).map_err(|_| StorageError::NumericRange)?;
+        let source_sequence =
+            i64::try_from(order.intent.source_sequence).map_err(|_| StorageError::NumericRange)?;
+        let price = i64::try_from(order.intent.price).map_err(|_| StorageError::NumericRange)?;
         sqlx::query(
             "INSERT INTO order_events \
              (session_id, user_ref, source_sequence, event_type, side, symbol, \

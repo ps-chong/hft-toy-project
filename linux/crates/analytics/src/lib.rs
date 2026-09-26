@@ -73,8 +73,7 @@ mod tests {
 
     #[test]
     fn summarizes_without_affecting_trading_path() {
-        let mut book =
-            LatencyBook::new(1_000_000).unwrap_or_else(|error| panic!("{error}"));
+        let mut book = LatencyBook::new(1_000_000).unwrap_or_else(|error| panic!("{error}"));
         for sample in [100, 200, 300, 400, 500] {
             book.record_tick_to_intent(sample);
         }
