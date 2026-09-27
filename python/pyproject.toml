@@ -30,6 +30,7 @@ hft-pcap-replay = "hft_tools.pcap_replay:main"
 hft-dashboard = "hft_tools.dashboard:main"
 hft-regdump = "hft_tools.regdump:main"
 hft-latency-report = "hft_tools.latency_report:main"
+hft-journal-export = "hft_tools.journal_export:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hft_tools"]

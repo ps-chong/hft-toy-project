@@ -23,8 +23,8 @@ services:
       - python
       - -m
       - hft_tools.exchange_sim
-      - --itch-bind
-      - 0.0.0.0:9000
+      - --itch-target
+      - 127.0.0.1:9000
       - --ouch-bind
       - 0.0.0.0:9001
     working_dir: /workspace
