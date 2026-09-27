@@ -90,9 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    summaries = {
-        name: summarize(values) for name, values in read_samples(args.input).items()
-    }
+    summaries = {name: summarize(values) for name, values in read_samples(args.input).items()}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.with_suffix(".json").write_text(
         json.dumps(

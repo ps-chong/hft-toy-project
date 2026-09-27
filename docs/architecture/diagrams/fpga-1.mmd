@@ -1,0 +1,11 @@
+flowchart LR
+    Source["DMA replay or 10G MAC AXI stream"] --> Mold["MoldUDP64 framing"]
+    Mold --> Itch["ITCH parser"]
+    Itch --> Book["Reference store and top-of-book"]
+    Book --> Signal["Spread and imbalance signal"]
+    Itch --> PreRisk["PL sanity and pre-risk gate"]
+    PreRisk --> Ring["AXI BRAM SPSC event ring"]
+    Ring --> IRQ["R5 doorbell interrupt"]
+    Control["AXI-Lite control snapshot"] --> PreRisk
+    Mold --> Counters["Gap and malformed counters"]
+    Book --> Counters

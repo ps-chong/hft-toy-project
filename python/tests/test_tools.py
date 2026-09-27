@@ -55,7 +55,7 @@ def test_exchange_simulator_gap_and_malformed_injection() -> None:
         itch_target=("127.0.0.1", 9000),
         ouch_bind=("127.0.0.1", 0),
         gap_every=2,
-        malformed_every=3,
+        malformed_every=4,
     )
     first = simulator.next_feed_packet()
     second = simulator.next_feed_packet()
@@ -110,9 +110,7 @@ def test_replay_and_register_helpers(tmp_path: Path) -> None:
 def test_latency_and_journal_reports(tmp_path: Path) -> None:
     samples = tmp_path / "samples.jsonl"
     samples.write_text(
-        "\n".join(
-            json.dumps({"tick_to_intent_ns": value}) for value in [10, 20, 30, 40]
-        ),
+        "\n".join(json.dumps({"tick_to_intent_ns": value}) for value in [10, 20, 30, 40]),
         encoding="utf-8",
     )
     values = read_samples(samples)
@@ -127,9 +125,7 @@ def test_latency_and_journal_reports(tmp_path: Path) -> None:
             json.dumps({"SESSION_ID": "two", "MESSAGE": "rejected"}),
         )
     )
-    assert parse_records(payload, "one") == [
-        {"SESSION_ID": "one", "MESSAGE": "accepted"}
-    ]
+    assert parse_records(payload, "one") == [{"SESSION_ID": "one", "MESSAGE": "accepted"}]
 
 
 def test_endpoint_parser_rejects_invalid_value() -> None:

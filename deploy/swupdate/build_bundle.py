@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Build a deterministic SWUpdate `newc` archive without shell pipelines."""
 
 from __future__ import annotations

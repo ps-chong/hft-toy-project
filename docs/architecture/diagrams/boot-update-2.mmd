@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> Verify
+    Verify --> Rejected: Signature, hash, hardware, ABI, or schema failure
+    Verify --> WriteInactive: Valid bundle
+    WriteInactive --> Rejected: Write or flush failure
+    WriteInactive --> Pending: Set slot, bootcount zero, upgrade flag
+    Pending --> BootCandidate: Reboot
+    BootCandidate --> Confirmed: PL, R5, hftd, DB, ABI healthy
+    BootCandidate --> Rollback: Timeout, crash, or bootlimit
+    Rollback --> [*]
+    Confirmed --> [*]
+    Rejected --> [*]

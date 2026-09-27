@@ -1,0 +1,9 @@
+flowchart LR
+    PL["PL producer"] --> Events["SPSC MarketEvent ring"]
+    Events --> Executor["Single consumer executor"]
+    Executor --> Intents["SPSC OrderIntent ring"]
+    Intents --> RPMsg["Single publisher"]
+    Control["A53 control actor"] --> Snapshot["Double-buffered config"]
+    Snapshot --> Executor
+    Executor --> Logs["Loss-tolerant log ring"]
+    Logs --> Logger["Low-priority RPMsg logger"]

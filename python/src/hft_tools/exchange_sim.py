@@ -74,16 +74,12 @@ class ExchangeSimulator:
         try:
             while not stop.is_set():
                 transport.sendto(self.next_feed_packet(), self.itch_target)
-                try:
+                with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(stop.wait(), timeout=self.interval)
-                except TimeoutError:
-                    pass
         finally:
             transport.close()
 
-    async def handle_ouch(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
+    async def handle_ouch(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
             while True:
                 packet = await SoupPacket.read(reader)
@@ -107,9 +103,7 @@ class ExchangeSimulator:
             with contextlib.suppress(ConnectionError):
                 await writer.wait_closed()
 
-    async def _handle_ouch_payload(
-        self, payload: bytes, writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle_ouch_payload(self, payload: bytes, writer: asyncio.StreamWriter) -> None:
         if len(payload) < 5 or payload[0] not in b"OUX":
             await write_soup(writer, SoupPacket(b"S", b"Jmalformed"))
             return
@@ -145,12 +139,8 @@ class ExchangeSimulator:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--itch-target", type=parse_endpoint, default=("127.0.0.1", 9000)
-    )
-    parser.add_argument(
-        "--ouch-bind", type=parse_endpoint, default=("127.0.0.1", 9001)
-    )
+    parser.add_argument("--itch-target", type=parse_endpoint, default=("127.0.0.1", 9000))
+    parser.add_argument("--ouch-bind", type=parse_endpoint, default=("127.0.0.1", 9001))
     parser.add_argument("--interval", type=float, default=0.1)
     parser.add_argument("--gap-every", type=int, default=0)
     parser.add_argument("--malformed-every", type=int, default=0)
@@ -166,10 +156,8 @@ def main() -> None:
         gap_every=args.gap_every,
         malformed_every=args.malformed_every,
     )
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(simulator.run())
-    except KeyboardInterrupt:
-        pass
 
 
 if __name__ == "__main__":

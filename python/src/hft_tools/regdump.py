@@ -9,7 +9,7 @@ import os
 import struct
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Self
+from typing import Any, Self, cast
 
 
 class RegisterMap:
@@ -40,11 +40,11 @@ class RegisterMap:
         os.close(self._descriptor)
 
     def read_u32(self, offset: int) -> int:
-        return struct.unpack_from("<I", self._mapping, offset)[0]
+        return int(struct.unpack_from("<I", self._mapping, offset)[0])
 
 
 def load_schema(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
 
 
 def decode_registers(image: bytes, schema: dict[str, Any]) -> dict[str, int]:
@@ -60,9 +60,7 @@ def decode_registers(image: bytes, schema: dict[str, Any]) -> dict[str, int]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", type=Path, default=Path("/dev/uio0"))
-    parser.add_argument(
-        "--schema", type=Path, default=Path("protocol/schema/registers.yaml")
-    )
+    parser.add_argument("--schema", type=Path, default=Path("protocol/schema/registers.yaml"))
     parser.add_argument("--json", action="store_true")
     return parser
 
