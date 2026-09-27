@@ -10,7 +10,7 @@ from vunit import VUnit
 
 ROOT = Path(__file__).resolve().parents[2]
 ENABLE_COVERAGE = os.environ.get("HFT_VHDL_COVERAGE", "0") == "1"
-vu = VUnit.from_argv()
+vu = VUnit.from_argv(compile_builtins=False)
 vu.add_vhdl_builtins()
 vu.add_osvvm()
 
@@ -49,6 +49,17 @@ def post_run(results: object) -> None:
                 str(coverage_dir / "coverage_data.ncdb"),
                 "-o",
                 str(coverage_dir / "html"),
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "nvc",
+                "--cover-export",
+                str(coverage_dir / "coverage_data.ncdb"),
+                "--format=cobertura",
+                "-o",
+                str(coverage_dir / "coverage.xml"),
             ],
             check=True,
         )
