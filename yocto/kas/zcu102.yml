@@ -1,0 +1,79 @@
+header:
+  version: 14
+
+machine: hft-zcu102
+distro: poky
+target:
+  - hft-image
+  - hft-image-update
+
+repos:
+  poky:
+    url: https://github.com/Xilinx/poky.git
+    commit: e61bfec33b0a4603f290ca4dabbfea121cfe9c91
+    layers:
+      meta:
+      meta-poky:
+
+  meta-openembedded:
+    url: https://github.com/openembedded/meta-openembedded.git
+    commit: b5874ea07d69919d9b40d59f2c2f0bbd24bc3259
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+      meta-filesystems:
+
+  meta-xilinx:
+    url: https://github.com/Xilinx/meta-xilinx.git
+    commit: 7967c6c8882d43518e8ec84eaadad797b190e6a1
+    layers:
+      meta-xilinx-core:
+      meta-xilinx-bsp:
+      meta-xilinx-standalone-sdt:
+
+  meta-xilinx-tools:
+    url: https://github.com/Xilinx/meta-xilinx-tools.git
+    commit: 94fea5f042e34522e9caf70c134817a046ca7e08
+    layers:
+      meta-xilinx-tools:
+
+  meta-amd-adaptive-socs:
+    url: https://github.com/Xilinx/meta-amd-adaptive-socs.git
+    commit: eb06eb73417a86fa649573dc4513fa84ffd0ca7a
+    layers:
+      meta-amd-adaptive-socs-core:
+      meta-amd-adaptive-socs-bsp:
+
+  meta-openamp:
+    url: https://github.com/Xilinx/meta-openamp.git
+    commit: b2e2e8083235b6c9a673b0a4d0219ddca0701b12
+
+  meta-rust-bin:
+    url: https://github.com/rust-embedded/meta-rust-bin.git
+    commit: e37fbb11787164952f089f14580672dc65aa0418
+
+  meta-swupdate:
+    url: https://github.com/sbabic/meta-swupdate.git
+    commit: 7da41c5f2eb58c95cf5b312cf0b34fdfc7bb1e4e
+
+  meta-hft:
+    path: ..
+
+local_conf_header:
+  hft-base: |
+    PACKAGE_CLASSES = "package_rpm"
+    INIT_MANAGER = "systemd"
+    DISTRO_FEATURES:append = " systemd usrmerge"
+    VIRTUAL-RUNTIME_init_manager = "systemd"
+    VIRTUAL-RUNTIME_initscripts = ""
+    EXTRA_IMAGE_FEATURES = "debug-tweaks package-management"
+    INHERIT += "rm_work create-spdx"
+    SPDX_INCLUDE_SOURCES = "1"
+    BB_GENERATE_MIRROR_TARBALLS = "1"
+    RUST_VERSION = "1.97.1"
+    HFT_SRCREV ?= "${AUTOREV}"
+    HFT_REPOSITORY ?= "git://github.com/ps-chong/hft-toy-project.git;protocol=https;branch=develop"
+  hft-downloads: |
+    DL_DIR = "${TOPDIR}/../downloads"
+    SSTATE_DIR = "${TOPDIR}/../sstate-cache"

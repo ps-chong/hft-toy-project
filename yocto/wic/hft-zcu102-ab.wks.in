@@ -1,0 +1,15 @@
+# short-description: ZCU102 HFT redundant A/B image
+# long-description: Two boot/rootfs slots plus persistent PostgreSQL/update data.
+
+part /boot --source bootimg-partition --ondisk mmcblk0 --fstype=vfat \
+  --label boot_a --active --align 4096 --size 256
+part --source bootimg-partition --ondisk mmcblk0 --fstype=vfat \
+  --label boot_b --align 4096 --size 256
+part / --source rootfs --ondisk mmcblk0 --fstype=ext4 \
+  --label rootfs_a --align 4096 --size 2048
+part --source rootfs --ondisk mmcblk0 --fstype=ext4 \
+  --label rootfs_b --align 4096 --size 2048
+part /data --ondisk mmcblk0 --fstype=ext4 \
+  --label hft_data --align 4096 --size 4096
+
+bootloader --ptable gpt

@@ -1,0 +1,13 @@
+[Unit]
+Description=Confirm healthy HFT A/B update slot
+After=hftd.service postgresql.service
+Requires=hftd.service
+ConditionPathExists=/run/hftd/control.sock
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/hft-update-health
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target
