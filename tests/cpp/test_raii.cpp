@@ -42,6 +42,14 @@ TEST(ScopedInterrupt, UnregistersExactlyOnceAfterMove) {
   }
 }
 
+TEST(ScopedInterrupt, DoesNotUnregisterFailedRegistration) {
+  MockInterruptController controller;
+  EXPECT_CALL(controller, register_irq(9)).WillOnce(testing::Return(false));
+  EXPECT_CALL(controller, unregister_irq(testing::_)).Times(0);
+  hft::ScopedInterrupt interrupt{controller, 9};
+  EXPECT_FALSE(interrupt);
+}
+
 TEST(FixedPool, UsesUniquePointerCustomDeleterWithoutHeapOwnership) {
   int destructions = 0;
   hft::FixedPool<Tracked, 2> pool;

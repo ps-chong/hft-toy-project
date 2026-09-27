@@ -1,5 +1,6 @@
 add_executable(
   hft_r5_tests
+  test_app.cpp
   test_config_snapshot.cpp
   test_control_task.cpp
   test_executor.cpp
