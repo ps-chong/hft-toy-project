@@ -16,6 +16,9 @@ target_link_libraries(hft_r5_core INTERFACE Boost::mp11 Boost::outcome)
 target_compile_definitions(
   hft_r5_core
   INTERFACE BOOST_OUTCOME_FORCE_LEGACY_GCC_BOOST_OUTCOME_C_CONCEPTS=0)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(hft_r5_core INTERFACE -Wno-error=undef)
+endif()
 
 if(CMAKE_CROSSCOMPILING)
   # Vendor headers intentionally probe undefined feature macros and contain
@@ -23,8 +26,7 @@ if(CMAKE_CROSSCOMPILING)
   # third-party diagnostics to cross-build failures.
   target_compile_options(
     hft_r5_core
-    INTERFACE -Wno-error=undef -Wno-error=cast-align
-              -Wno-error=sign-conversion)
+    INTERFACE -Wno-error=cast-align -Wno-error=sign-conversion)
 endif()
 
 if(HFT_ENABLE_CIB)
