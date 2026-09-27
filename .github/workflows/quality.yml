@@ -41,8 +41,9 @@ jobs:
             --cov-report=xml:coverage-reports/python/coverage.xml
       - name: Render and verify architecture diagrams
         run: |
+          python scripts/render_diagrams.py
+          git diff --exit-code -- docs/architecture/diagrams/*.mmd
           python scripts/render_diagrams.py --render
-          git diff --exit-code -- docs/architecture/diagrams
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

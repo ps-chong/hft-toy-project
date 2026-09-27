@@ -4,6 +4,8 @@
 /coverage-reports/
 /artifacts/
 /vunit_out/
+*.ncdb
+*.covdb
 CMakeUserPresets.json
 compile_commands.json
 

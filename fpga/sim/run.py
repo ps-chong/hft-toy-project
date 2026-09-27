@@ -10,11 +10,31 @@ COVER_SPEC = "branch,statement,functional"
 ENABLE_COVERAGE = os.environ.get("HFT_VHDL_COVERAGE", "0") == "1"
 
 
-def coverage_databases(output_root: Path) -> list[Path]:
-    databases = sorted(path for path in output_root.rglob("*.ncdb") if path.is_file())
-    if not databases:
-        databases = sorted(path for path in output_root.rglob("*.covdb") if path.is_file())
-    return databases
+def _database_paths(root: Path, pattern: str) -> list[Path]:
+    if not root.exists():
+        return []
+    if root.resolve() in {ROOT.resolve(), Path.cwd().resolve()}:
+        paths = list(root.glob(pattern))
+        vunit_out = root / "vunit_out"
+        if vunit_out.exists():
+            paths.extend(vunit_out.rglob(pattern))
+        return paths
+    return list(root.rglob(pattern))
+
+
+def coverage_databases(*roots: Path) -> list[Path]:
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for pattern in ("*.ncdb", "*.covdb"):
+        for root in roots:
+            for path in _database_paths(root, pattern):
+                resolved = path.resolve()
+                if path.is_file() and resolved not in seen:
+                    seen.add(resolved)
+                    found.append(path)
+        if found:
+            return sorted(found)
+    return []
 
 
 def export_nvc_coverage(databases: list[Path], dest: Path) -> None:
@@ -70,9 +90,8 @@ def configure_suite():
     lib.add_source_files(ROOT / "fpga/tb" / "tb_*.vhd")
 
     if ENABLE_COVERAGE:
-        cover_flags = [f"--cover={COVER_SPEC}"]
-        lib.set_compile_option("nvc.a_flags", cover_flags)
-        lib.set_sim_option("nvc.elab_flags", cover_flags)
+        # NVC accepts --cover only on elaborate, not analyse.
+        lib.set_sim_option("nvc.elab_flags", [f"--cover={COVER_SPEC}"])
     return vu
 
 
@@ -86,7 +105,7 @@ def main() -> None:
             raise RuntimeError("HFT_VHDL_COVERAGE=1 requires VUNIT_SIMULATOR=nvc")
         output_root = Path(getattr(results, "_output_path", "vunit_out"))
         export_nvc_coverage(
-            coverage_databases(output_root),
+            coverage_databases(output_root, ROOT, Path.cwd()),
             ROOT / "coverage-reports" / "vhdl",
         )
 
