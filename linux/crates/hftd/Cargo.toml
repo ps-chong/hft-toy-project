@@ -9,11 +9,11 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-hft-analytics = { path = "../analytics" }
-hft-ouch = { path = "../ouch" }
-hft-protocol = { path = "../protocol" }
-hft-rpmsg = { path = "../rpmsg" }
-hft-storage = { path = "../storage" }
+hft-analytics = { path = "../analytics", version = "0.1.0" }
+hft-ouch = { path = "../ouch", version = "0.1.0" }
+hft-protocol = { path = "../protocol", version = "0.1.0" }
+hft-rpmsg = { path = "../rpmsg", version = "0.1.0" }
+hft-storage = { path = "../storage", version = "0.1.0" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

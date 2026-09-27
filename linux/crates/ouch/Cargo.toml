@@ -9,7 +9,7 @@ repository.workspace = true
 [dependencies]
 async-trait.workspace = true
 bytes.workspace = true
-hft-protocol = { path = "../protocol" }
+hft-protocol = { path = "../protocol", version = "0.1.0" }
 thiserror.workspace = true
 tokio.workspace = true
 
