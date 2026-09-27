@@ -23,7 +23,7 @@ public:
   }
 
   [[nodiscard]] auto publish_market_event(MarketEvent event) noexcept -> bool {
-    if (events_.try_push(std::move(event))) {
+    if (events_.try_push(event)) {
       return true;
     }
     auto failed = configuration_.load();
