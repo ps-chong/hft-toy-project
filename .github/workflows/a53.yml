@@ -1,0 +1,82 @@
+name: Cortex-A53
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: hft_test
+          POSTGRES_USER: hft
+          POSTGRES_PASSWORD: hft-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hft"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97.1
+          components: clippy,llvm-tools-preview,rustfmt
+          targets: aarch64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c
+        with:
+          cache-on-failure: true
+      - name: Install cross compiler and PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu postgresql-client
+      - name: Verify formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Unit and actor integration tests
+        env:
+          DATABASE_URL: postgresql://hft:hft-test@127.0.0.1:5432/hft_test
+        run: cargo test --workspace --all-targets
+      - name: Validate PostgreSQL migrations
+        env:
+          PGPASSWORD: hft-test
+        run: |
+          psql -h 127.0.0.1 -U hft -d hft_test \
+            -v ON_ERROR_STOP=1 \
+            -f linux/crates/storage/migrations/0001_initial.sql
+      - name: Coverage
+        run: |
+          cargo install cargo-llvm-cov --locked
+          mkdir -p coverage-reports/rust
+          cargo llvm-cov --workspace --all-targets \
+            --cobertura --output-path coverage-reports/rust/coverage.xml
+          cargo llvm-cov report --html \
+            --output-dir coverage-reports/rust/html
+      - name: Dependency policy
+        run: |
+          cargo install cargo-audit cargo-deny --locked
+          cargo audit
+          cargo deny check
+      - name: Cross-compile A53 release binaries
+        run: cargo build --workspace --release --target aarch64-unknown-linux-gnu
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: a53-rust-results
+          path: |
+            coverage-reports/rust/
+            target/aarch64-unknown-linux-gnu/release/hftd
+            target/aarch64-unknown-linux-gnu/release/hftctl

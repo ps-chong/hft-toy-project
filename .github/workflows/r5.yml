@@ -1,0 +1,91 @@
+name: Cortex-R5
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ARM_GNU_VERSION: 13.3.rel1
+  ARM_GNU_SHA256: 95c011cee430e64dd6087c75c800f04b9c49832cc1000127a92a97f9c8d83af4
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tidy-18 clang-tools-18 \
+            g++-14 gcovr libclang-rt-18-dev ninja-build
+      - name: Configure sanitized Clang build
+        run: cmake --preset host-clang-debug
+      - name: Build
+        run: cmake --build --preset host-clang-debug
+      - name: GoogleTest and GoogleMock
+        run: ctest --preset host-clang-debug --output-junit "$GITHUB_WORKSPACE/r5-junit.xml"
+      - name: Static analysis
+        run: |
+          run-clang-tidy-18 -p build/host-clang-debug \
+            r5/src/host_demo.cpp tests/cpp/*.cpp
+      - name: Configure coverage build
+        run: cmake --preset host-coverage
+      - name: Build and test coverage target
+        run: |
+          cmake --build --preset host-coverage
+          ctest --preset host-coverage
+          mkdir -p coverage-reports/cpp
+          gcovr --root . build/host-coverage \
+            --filter 'r5/' --filter 'tests/cpp/' \
+            --exclude 'build/' \
+            --xml-pretty coverage-reports/cpp/coverage.xml \
+            --html-details coverage-reports/cpp/index.html
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: r5-host-tests
+          path: |
+            build/host-clang-debug/r5/hft_r5_host_demo
+            r5-junit.xml
+            coverage-reports/cpp/
+
+  cross-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+      - name: Install pinned Arm GNU toolchain
+        run: |
+          archive="arm-gnu-toolchain-${ARM_GNU_VERSION}-x86_64-arm-none-eabi.tar.xz"
+          curl --fail --location --retry 3 \
+            "https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu/${ARM_GNU_VERSION}/binrel/${archive}" \
+            --output "/tmp/${archive}"
+          echo "${ARM_GNU_SHA256}  /tmp/${archive}" | sha256sum --check -
+          sudo tar -C /opt -xf "/tmp/${archive}"
+          sudo mv "/opt/arm-gnu-toolchain-${ARM_GNU_VERSION}-x86_64-arm-none-eabi" \
+            /opt/arm-gnu-toolchain
+          echo "ARM_GNU_TOOLCHAIN_ROOT=/opt/arm-gnu-toolchain" >> "$GITHUB_ENV"
+      - name: Cross-compile firmware with CIB and fmt
+        run: |
+          cmake --preset r5-release
+          cmake --build --preset r5-release
+          /opt/arm-gnu-toolchain/bin/arm-none-eabi-size \
+            build/r5-release/r5/hft_r5_firmware.elf | tee r5-size.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: r5-firmware
+          path: |
+            build/r5-release/r5/hft_r5_firmware.elf
+            build/r5-release/r5/hft_r5_firmware.map
+            r5-size.txt

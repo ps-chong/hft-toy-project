@@ -417,6 +417,8 @@ pub fn encode_enter_order(intent: &OrderIntent) -> Result<Bytes, ProtocolError> 
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
 
     const ADD_VECTOR: &[u8] = include_bytes!("../../../../protocol/vectors/mold_add_order.bin");
@@ -460,5 +462,28 @@ mod tests {
             SoupPacket::decode(&encoded).unwrap_or_else(|error| panic!("{error}")),
             packet
         );
+    }
+
+    proptest! {
+        #[test]
+        fn arbitrary_soup_payload_round_trips(
+            packet_type in any::<u8>(),
+            payload in proptest::collection::vec(any::<u8>(), 0..512),
+        ) {
+            let packet = SoupPacket {
+                packet_type,
+                payload: Bytes::from(payload),
+            };
+            let encoded = packet.encode();
+            prop_assert!(encoded.is_ok());
+            let decoded = encoded
+                .and_then(|frame| SoupPacket::decode(&frame));
+            prop_assert_eq!(decoded, Ok(packet));
+        }
+
+        #[test]
+        fn arbitrary_mold_bytes_never_panic(payload in proptest::collection::vec(any::<u8>(), 0..2048)) {
+            let _result = MoldPacket::parse(&payload);
+        }
     }
 }

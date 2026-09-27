@@ -1,0 +1,19 @@
+[package]
+name = "hft-protocol-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+hft-protocol = { path = ".." }
+
+[[bin]]
+name = "mold_and_soup"
+path = "fuzz_targets/mold_and_soup.rs"
+test = false
+doc = false
+bench = false
