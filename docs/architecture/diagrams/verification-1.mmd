@@ -1,0 +1,7 @@
+flowchart TB
+    Hil["Future ZCU102 HIL and power-cut tests"]
+    E2E["Software end-to-end simulator tests"]
+    Integration["RPMsg, OUCH, SQL, SWU integration tests"]
+    Unit["VHDL, C++, Rust, and Python unit/property tests"]
+    Static["Generated-contract drift, lint, DRC, sanitizers, audit"]
+    Static --> Unit --> Integration --> E2E --> Hil

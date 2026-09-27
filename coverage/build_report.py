@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Merge per-layer coverage summaries into a static HTML landing page."""
 
 from __future__ import annotations
@@ -83,7 +82,9 @@ def render(summaries: list[Summary]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("reports", nargs="+", type=Path)
-    parser.add_argument("--output", type=Path, default=Path("coverage-reports/index.html"))
+    parser.add_argument(
+        "--output", type=Path, default=Path("coverage-reports/index.html")
+    )
     args = parser.parse_args()
 
     summaries = [read_cobertura(report) for report in args.reports]

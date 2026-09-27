@@ -1,0 +1,9 @@
+stateDiagram-v2
+    [*] --> Killed
+    Killed --> Armed: Valid config plus explicit arm
+    Armed --> Processing: PL doorbell
+    Processing --> Processing: Event within batch budget
+    Processing --> Armed: Queue empty or yield budget
+    Processing --> Killed: Gap, overflow, ABI, watchdog
+    Armed --> Killed: Operator kill
+    Killed --> Killed: Good data alone

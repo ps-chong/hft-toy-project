@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant R5 as R5 order state
+    participant RP as RPMsg
+    participant GW as Rust OUCH actor
+    participant TCP as SoupBinTCP
+    participant Sim as Exchange simulator
+    R5->>RP: Approved OrderIntent
+    RP->>GW: Version and ABI validation
+    GW->>TCP: Unsequenced Data packet
+    TCP->>Sim: Enter, Replace, or Cancel
+    Sim-->>TCP: Accepted, Replaced, Canceled, Executed, or Rejected
+    TCP-->>GW: Sequenced Data packet
+    GW->>GW: Reconcile token and sequence
+    GW-->>RP: Lifecycle event
+    GW--)GW: Nonblocking persistence copy

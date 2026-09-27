@@ -1,0 +1,9 @@
+flowchart LR
+    Abi["Bytes 0-1: ABI"] --> Kind["Byte 2: kind or action"]
+    Kind --> Side["Byte 3: side"]
+    Side --> Ref["Bytes 4-7: flags or user ref"]
+    Ref --> Seq["Bytes 8-15: source sequence"]
+    Seq --> Time["Bytes 16-23: timestamp"]
+    Time --> Identity["Bytes 24-31: reference or symbol"]
+    Identity --> Value["Bytes 32-47: symbol, price, or quantity"]
+    Value --> Tail["Bytes 48-63: quantity, revision, reserved"]

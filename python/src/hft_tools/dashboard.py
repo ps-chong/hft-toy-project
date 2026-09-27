@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Static
@@ -18,7 +18,7 @@ async def request_status(socket_path: Path) -> dict[str, Any]:
         writer.write(b'{"command":"status"}\n')
         await writer.drain()
         response = await asyncio.wait_for(reader.readline(), timeout=1.0)
-        return json.loads(response)
+        return cast(dict[str, Any], json.loads(response))
     finally:
         writer.close()
         await writer.wait_closed()
@@ -57,7 +57,7 @@ class HftDashboard(App[None]):
                         f"Killed: {state.get('killed', True)}",
                         f"Risk revision: {state.get('revision', 'unknown')}",
                         f"Max quantity: {state.get('max_quantity', 'unknown')}",
-                        f"Price collar: {state.get('price_floor', 'unknown')} – "
+                        f"Price collar: {state.get('price_floor', 'unknown')} - "
                         f"{state.get('price_ceiling', 'unknown')}",
                     )
                 )
@@ -70,9 +70,7 @@ class HftDashboard(App[None]):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--socket", type=Path, default=Path("/run/hftd/control.sock")
-    )
+    parser.add_argument("--socket", type=Path, default=Path("/run/hftd/control.sock"))
     args = parser.parse_args()
     HftDashboard(args.socket).run()
 

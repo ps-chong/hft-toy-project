@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Extract Mermaid blocks from architecture Markdown and render SVG files."""
 
 from __future__ import annotations
@@ -52,9 +51,7 @@ def render(diagrams: list[Path], output_dir: Path, command: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--source", type=Path, default=Path("docs/architecture")
-    )
+    parser.add_argument("--source", type=Path, default=Path("docs/architecture"))
     parser.add_argument(
         "--output", type=Path, default=Path("docs/architecture/diagrams")
     )

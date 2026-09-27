@@ -1,0 +1,9 @@
+flowchart LR
+    Feed["MoldUDP64 and ITCH feed"] --> Mac["10G MAC or DMA replay"]
+    Mac --> PL["VHDL validation, sequencing, book, signal"]
+    PL -->|Normalized event ring| R5["FreeRTOS cooperative executor"]
+    R5 -->|Approved intent over RPMsg| A53["Rust hftd actors"]
+    A53 -->|SoupBinTCP and OUCH| Exchange["Exchange simulator"]
+    A53 --> Journal["journald"]
+    A53 --> Postgres["PostgreSQL"]
+    A53 --> Api["CLI and local API"]

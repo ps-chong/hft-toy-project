@@ -1,0 +1,9 @@
+stateDiagram-v2
+    [*] --> Disconnected
+    Disconnected --> Authenticating: TCP connected
+    Authenticating --> Active: Login Accepted
+    Authenticating --> Disconnected: Login Rejected or timeout
+    Active --> Active: Order and heartbeat traffic
+    Active --> Reconnecting: EOF, timeout, sequence fault
+    Reconnecting --> Authenticating: Backoff complete
+    Reconnecting --> Disconnected: Cancellation

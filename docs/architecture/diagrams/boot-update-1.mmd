@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant ROM as ZynqMP BootROM
+    participant FSBL as FSBL
+    participant PMU as PMU firmware
+    participant ATF as TF-A
+    participant UBoot as U-Boot
+    participant Linux as A53 Linux
+    participant R5 as R5 FreeRTOS
+    ROM->>FSBL: Load authenticated BOOT image
+    FSBL->>PMU: Start platform management
+    FSBL->>ATF: Hand off A53 execution
+    ATF->>UBoot: EL3 handoff
+    UBoot->>UBoot: Select A/B slot and increment bootcount
+    UBoot->>Linux: Kernel, DTB, rootfs
+    Linux->>R5: remoteproc loads hft-r5.elf
+    R5-->>Linux: RPMsg endpoint appears
+    Linux->>Linux: Start hftd, PostgreSQL, health confirmation

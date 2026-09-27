@@ -1,0 +1,11 @@
+flowchart TB
+    NetClk["156.25 MHz network clock"] --> Ingress["MAC and ingress parser"]
+    PsClk["PS AXI clock"] --> Registers["Control and status registers"]
+    PsClk --> Bram["Dual-port BRAM rings"]
+    Ingress --> CdcEvent["Asynchronous event FIFO"]
+    CdcEvent --> Bram
+    Registers --> CdcControl["Versioned control CDC"]
+    CdcControl --> Ingress
+    Reset["Synchronized reset per domain"] --> Ingress
+    Reset --> Registers
+    Reset --> Bram

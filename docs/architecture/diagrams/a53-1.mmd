@@ -1,0 +1,12 @@
+flowchart LR
+    Remoteproc["systemd remoteproc loader"] --> RPMsg["RPMsg owner"]
+    RPMsg -->|Bounded intents| Supervisor["hftd supervisor"]
+    Supervisor --> Ouch["SoupBinTCP and OUCH owner"]
+    Supervisor -->|try_send| Storage["PostgreSQL batch owner"]
+    Supervisor -->|try_send| Analytics["Latency owner"]
+    Control["Unix control socket owner"] -->|Watch snapshot| Supervisor
+    RPMsg --> Journal["tracing-journald"]
+    Ouch --> Journal
+    Storage --> Journal
+    CLI["hftctl"] --> Control
+    TUI["Python dashboard"] --> Control
