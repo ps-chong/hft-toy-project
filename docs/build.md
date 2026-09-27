@@ -15,7 +15,8 @@ VUNIT_SIMULATOR=ghdl .venv/bin/python fpga/sim/run.py
 .venv/bin/vsg -c fpga/vsg.yaml -f fpga/rtl/*.vhd fpga/tb/*.vhd
 ```
 
-Set `VUNIT_SIMULATOR=nvc HFT_VHDL_COVERAGE=1` for NVC coverage.
+Set `VUNIT_SIMULATOR=nvc HFT_VHDL_COVERAGE=1` for NVC coverage. CI installs
+the NVC 1.23.0 Ubuntu 24.04 package from the upstream GitHub release.
 
 ## R5 host and target
 

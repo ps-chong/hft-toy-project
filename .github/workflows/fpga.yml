@@ -52,20 +52,13 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: python/pyproject.toml
-      - name: Build pinned NVC
+      - name: Install pinned NVC
         run: |
+          curl -sL -o /tmp/nvc.deb \
+            https://github.com/nickg/nvc/releases/download/r1.23.0/nvc_1.23.0-1_amd64_ubuntu-24.04.deb
           sudo apt-get update
-          sudo apt-get install -y autoconf automake bison check flex \
-            libdw-dev libffi-dev libzstd-dev llvm-dev pkg-config
-          git clone https://github.com/nickg/nvc.git /tmp/nvc
-          git -C /tmp/nvc checkout 0031cc2e17e568ac36576318a1348828ea78ad5f
-          cd /tmp/nvc
-          ./autogen.sh
-          mkdir build
-          cd build
-          ../configure --prefix=/usr/local
-          make -j"$(nproc)"
-          sudo make install
+          sudo apt-get install -y /tmp/nvc.deb
+          nvc --version
       - name: Install VUnit
         run: python -m pip install -e 'python[dev]'
       - name: Run statement, branch, and functional coverage

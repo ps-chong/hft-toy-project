@@ -25,3 +25,9 @@ def test_vector_manifest_references_existing_files() -> None:
         payload = vector_dir / vector["file"]
         assert payload.is_file()
         assert payload.stat().st_size >= 20
+        ignored = subprocess.run(
+            ["git", "check-ignore", "-q", str(payload.relative_to(ROOT))],
+            cwd=ROOT,
+            check=False,
+        )
+        assert ignored.returncode == 1

@@ -16,6 +16,7 @@ compile_commands.json
 *.vcd
 *.bit
 *.bin
+!protocol/vectors/*.bin
 *.xsa
 *.runs/
 *.cache/
