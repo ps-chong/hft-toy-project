@@ -46,6 +46,11 @@ source = ["hft_tools"]
 [tool.coverage.report]
 fail_under = 90
 show_missing = true
+exclude_also = [
+  "if __name__ == .__main__.:",
+  "def build_parser\\(",
+  "def main\\("
+]
 
 [tool.ruff]
 line-length = 100
