@@ -57,7 +57,7 @@ def replay(
     return sent
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:  # pragma: no cover - CLI glue
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("captures", nargs="+", type=Path)
     parser.add_argument("--target", type=parse_endpoint, default=("127.0.0.1", 9000))
@@ -67,7 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover - CLI glue
     args = build_parser().parse_args()
     frames = load_frames(args.captures)
     sent = replay(

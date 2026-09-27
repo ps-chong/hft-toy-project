@@ -17,7 +17,13 @@ from hft_tools.exchange_sim import ExchangeSimulator, parse_endpoint
 from hft_tools.journal_export import export_journal, parse_records
 from hft_tools.latency_report import read_samples, render_html, summarize
 from hft_tools.pcap_replay import load_frames, replay, rewrite_sequence
-from hft_tools.protocol import SoupPacket, encode_itch_add, encode_mold, fixed_ascii
+from hft_tools.protocol import (
+    SoupPacket,
+    encode_itch_add,
+    encode_itch_cancel,
+    encode_mold,
+    fixed_ascii,
+)
 from hft_tools.regdump import RegisterMap, decode_registers, load_schema
 
 
@@ -47,6 +53,27 @@ def test_protocol_helpers_validate_and_encode() -> None:
     assert len(message) == 36
     assert packet[10:18] == (7).to_bytes(8, "big")
     assert packet[18:20] == b"\0\1"
+    assert (
+        len(
+            encode_itch_cancel(
+                timestamp_ns=123_457,
+                order_reference=1,
+                canceled_quantity=10,
+            )
+        )
+        == 23
+    )
+    with pytest.raises(ValueError):
+        encode_itch_add(
+            timestamp_ns=1 << 48,
+            order_reference=1,
+            side="B",
+            quantity=1,
+            symbol="ACME",
+            price=1,
+        )
+    with pytest.raises(ValueError):
+        encode_mold("TESTSESS01", 1, [b"x"] * 0xFFFF)
 
 
 def test_soup_packet_validation() -> None:
@@ -80,6 +107,13 @@ def test_exchange_simulator_gap_and_malformed_injection() -> None:
     assert int.from_bytes(second[10:18], "big") == 2
     assert int.from_bytes(third[10:18], "big") == 4
     assert len(third) == len(first) - 1
+
+    async def stopped_publisher() -> None:
+        stop = asyncio.Event()
+        stop.set()
+        await simulator.publish_feed(stop)
+
+    asyncio.run(stopped_publisher())
 
 
 def test_exchange_soup_login_and_order() -> None:
@@ -152,6 +186,14 @@ def test_replay_and_register_helpers(tmp_path: Path) -> None:
     image_file.write_bytes(image)
     with RegisterMap(image_file, len(image)) as registers:
         assert registers.read_u32(0) == 0x48544654
+    with pytest.raises(ValueError):
+        load_frames([])
+    truncated = tmp_path / "truncated.bin"
+    truncated.write_bytes(b"short")
+    with pytest.raises(ValueError):
+        load_frames([truncated])
+    with pytest.raises(ValueError):
+        rewrite_sequence(b"short", 1)
 
 
 def test_udp_replay_sends_all_frames() -> None:
@@ -160,8 +202,17 @@ def test_udp_replay_sends_all_frames() -> None:
         receiver.bind(("127.0.0.1", 0))
         receiver.settimeout(1)
         target = receiver.getsockname()
-        assert replay([frame], target, packets_per_second=100_000, repeat=2) == 2
-        assert receiver.recv(2048) == frame
+        assert (
+            replay(
+                [frame],
+                target,
+                packets_per_second=100_000,
+                repeat=2,
+                inject_gap_at=1,
+            )
+            == 2
+        )
+        assert int.from_bytes(receiver.recv(2048)[10:18], "big") == 2
         assert receiver.recv(2048) == frame
     with pytest.raises(ValueError):
         replay([frame], target, packets_per_second=0, repeat=1)
@@ -184,6 +235,9 @@ def test_latency_and_journal_reports(tmp_path: Path) -> None:
     invalid.write_text('{"tick_to_intent_ns": -1}\n', encoding="utf-8")
     with pytest.raises(ValueError):
         read_samples(invalid)
+    invalid.write_text('{"tick_to_intent_ns": "slow"}\n', encoding="utf-8")
+    with pytest.raises(ValueError):
+        read_samples(invalid)
 
     payload = "\n".join(
         (
@@ -192,6 +246,7 @@ def test_latency_and_journal_reports(tmp_path: Path) -> None:
         )
     )
     assert parse_records(payload, "one") == [{"SESSION_ID": "one", "MESSAGE": "accepted"}]
+    assert len(parse_records("\n" + payload)) == 2
 
 
 def test_journal_export_uses_structured_records(
@@ -230,7 +285,7 @@ def test_dashboard_connected_and_disconnected_states(tmp_path: Path) -> None:
         async with app.run_test() as pilot:
             await app.refresh_status()
             widget = app.query_one("#status", Static)
-            assert "Daemon: connected" in str(widget.renderable)
+            assert widget.has_class("healthy")
             await pilot.pause()
         server.close()
         await server.wait_closed()
@@ -239,7 +294,7 @@ def test_dashboard_connected_and_disconnected_states(tmp_path: Path) -> None:
         async with disconnected.run_test():
             await disconnected.refresh_status()
             widget = disconnected.query_one("#status", Static)
-            assert "disconnected" in str(widget.renderable)
+            assert widget.has_class("failed")
 
     asyncio.run(scenario())
 
@@ -248,3 +303,5 @@ def test_endpoint_parser_rejects_invalid_value() -> None:
     assert parse_endpoint("127.0.0.1:9000") == ("127.0.0.1", 9000)
     with pytest.raises(argparse.ArgumentTypeError):
         parse_endpoint("missing-port")
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_endpoint("localhost:not-a-port")

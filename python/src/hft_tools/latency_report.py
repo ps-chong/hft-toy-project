@@ -81,14 +81,14 @@ td:first-child{{text-align:left}}</style></head><body>
 """
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:  # pragma: no cover - CLI glue
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("--output", type=Path, default=Path("latency-report"))
     return parser
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover - CLI glue
     args = build_parser().parse_args()
     summaries = {name: summarize(values) for name, values in read_samples(args.input).items()}
     args.output.parent.mkdir(parents=True, exist_ok=True)

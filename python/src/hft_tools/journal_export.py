@@ -47,7 +47,7 @@ def export_journal(
     return len(records)
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover - CLI glue
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--session")
