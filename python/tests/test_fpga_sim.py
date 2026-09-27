@@ -27,7 +27,11 @@ def test_coverage_databases_prefer_ncdb(tmp_path: Path) -> None:
     database = nested / "tb_hft_pipeline.ncdb"
     database.write_bytes(b"ncdb")
     (nested / "stale.covdb").write_bytes(b"old")
-    assert run.coverage_databases(tmp_path) == [database]
+    cwd_dump = tmp_path / "tb_risk_guard-tb.ncdb"
+    cwd_dump.write_bytes(b"cwd")
+    assert run.coverage_databases(tmp_path, cwd_dump.parent) == sorted(
+        [cwd_dump, database]
+    )
 
 
 def test_export_nvc_coverage_copies_single_database(
