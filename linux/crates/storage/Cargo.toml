@@ -8,8 +8,8 @@ repository.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-hft-analytics = { path = "../analytics" }
-hft-protocol = { path = "../protocol" }
+hft-analytics = { path = "../analytics", version = "0.1.0" }
+hft-protocol = { path = "../protocol", version = "0.1.0" }
 serde.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true

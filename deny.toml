@@ -1,6 +1,9 @@
 [advisories]
 yanked = "deny"
 unmaintained = "workspace"
+ignore = [
+  { id = "RUSTSEC-2023-0071", reason = "sqlx-postgres pulls rsa 0.9; no patched release for the Marvin timing advisory" }
+]
 
 [bans]
 multiple-versions = "warn"
@@ -12,6 +15,7 @@ allow = [
   "Apache-2.0",
   "BSD-2-Clause",
   "BSD-3-Clause",
+  "CDLA-Permissive-2.0",
   "ISC",
   "MIT",
   "Unicode-3.0",
