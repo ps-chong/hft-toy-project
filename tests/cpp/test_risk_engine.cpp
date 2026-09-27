@@ -96,3 +96,25 @@ TEST(RiskEngine, TracksOpenOrders) {
   engine.on_order_closed();
   EXPECT_TRUE(engine.check(intent(3)));
 }
+
+TEST(RiskEngine, RejectsMalformedOrderFields) {
+  hft::RiskEngine engine{armed_config()};
+
+  auto invalid_side = intent(1);
+  invalid_side.side = hft::Side::unknown;
+  auto invalid_side_result = engine.check(invalid_side);
+  ASSERT_FALSE(invalid_side_result);
+  EXPECT_EQ(invalid_side_result.assume_error(), hft::RiskError::invalid_side);
+
+  auto zero = intent(2);
+  zero.quantity = 0;
+  auto zero_result = engine.check(zero);
+  ASSERT_FALSE(zero_result);
+  EXPECT_EQ(zero_result.assume_error(), hft::RiskError::zero_quantity);
+
+  auto outside_collar = intent(3);
+  outside_collar.price = 111;
+  auto price_result = engine.check(outside_collar);
+  ASSERT_FALSE(price_result);
+  EXPECT_EQ(price_result.assume_error(), hft::RiskError::price_collar);
+}

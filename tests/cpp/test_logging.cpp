@@ -28,3 +28,15 @@ TEST(Logger, TruncatesWithoutAllocatingPastBuffer) {
                         [](std::string_view value) { return value.size() == 12; })));
   logger.write(hft::LogLevel::warning, "{}", "a very long diagnostic");
 }
+
+TEST(Logger, EmitsStableLevelPrefixes) {
+  MockSink sink;
+  hft::Logger<MockSink, 64> logger{sink};
+  testing::InSequence sequence;
+  EXPECT_CALL(sink, write("DEBUG debug"));
+  EXPECT_CALL(sink, write("WARN warning"));
+  EXPECT_CALL(sink, write("ERROR error"));
+  logger.write(hft::LogLevel::debug, "debug");
+  logger.write(hft::LogLevel::warning, "warning");
+  logger.write(hft::LogLevel::error, "error");
+}

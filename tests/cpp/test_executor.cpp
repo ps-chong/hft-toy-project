@@ -83,3 +83,26 @@ TEST(CooperativeExecutor, FailsClosedWhenIntentRingIsFull) {
   EXPECT_EQ(executor.stats().output_overflows, 1);
   EXPECT_EQ(intents.size_approx(), 2);
 }
+
+TEST(CooperativeExecutor, CountsLifecycleAndMalformedEventsWithoutBlocking) {
+  hft::SpscRing<hft::MarketEvent, 8> events;
+  hft::SpscRing<hft::OrderIntent, 8> intents;
+  MockClock clock;
+  hft::RiskEngine risk{config()};
+  hft::OrderManager manager{clock, risk};
+  hft::ConfigSnapshot snapshot{config()};
+  hft::CooperativeExecutor executor{events, intents, manager, snapshot};
+
+  auto cancel = event(1);
+  cancel.kind = hft::EventKind::cancel;
+  auto bad_abi = event(2);
+  bad_abi.abi_version = 99;
+  ASSERT_TRUE(events.try_push(cancel));
+  ASSERT_TRUE(events.try_push(bad_abi));
+  EXPECT_CALL(clock, now_ns()).Times(0);
+
+  EXPECT_EQ(executor.run_batch(8), 2);
+  EXPECT_EQ(executor.stats().ignored, 1);
+  EXPECT_EQ(executor.stats().rejected, 1);
+  EXPECT_TRUE(intents.empty());
+}
