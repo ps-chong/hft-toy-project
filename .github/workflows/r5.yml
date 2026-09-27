@@ -45,8 +45,11 @@ jobs:
           gcovr --root . build/host-coverage \
             --filter 'r5/' --filter 'tests/cpp/' \
             --exclude 'build/' \
-            --xml-pretty coverage-reports/cpp/coverage.xml \
-            --html-details coverage-reports/cpp/index.html
+            --xml-pretty --output coverage-reports/cpp/coverage.xml
+          gcovr --root . build/host-coverage \
+            --filter 'r5/' --filter 'tests/cpp/' \
+            --exclude 'build/' \
+            --html-details --output coverage-reports/cpp/index.html
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
