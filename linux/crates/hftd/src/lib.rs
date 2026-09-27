@@ -77,6 +77,7 @@ impl<R: RpmsgTransport, G: OrderGateway> Daemon<R, G> {
         info!(session_id = %self.session_id, "hftd actor started");
         loop {
             tokio::select! {
+                biased;
                 () = self.cancellation.cancelled() => {
                     info!("hftd cancellation requested");
                     return Ok(self.stats);
@@ -112,6 +113,7 @@ pub async fn run_storage_actor(
 ) -> Result<(), StorageError> {
     loop {
         tokio::select! {
+            biased;
             () = cancellation.cancelled() => return Ok(()),
             command = receiver.recv() => {
                 let Some(command) = command else {
