@@ -69,3 +69,19 @@ See [docs/architecture/overview.md](docs/architecture/overview.md) for the
 system design, [docs/coding-standards.md](docs/coding-standards.md) for
 library/ownership rules, and [docs/safety.md](docs/safety.md) for operating
 limits.
+
+## Developer tools
+
+After installing `python[dev]`, the package provides:
+
+- `hft-exchange-sim`: deterministic ITCH/OUCH simulator with fault injection.
+- `hft-pcap-replay`: paced MoldUDP64 vector replay and gap injection.
+- `hft-dashboard`: disconnected/healthy/error Textual UI.
+- `hft-regdump`: generated PL register decoding through UIO.
+- `hft-latency-report`: JSON/HTML percentile reports.
+- `hft-journal-export`: structured session export from `journalctl`.
+
+The full documentation index is
+[docs/architecture/README.md](docs/architecture/README.md). Build, debugging,
+latency, acceleration, and deferred hardware constraints are documented under
+`docs/`.
