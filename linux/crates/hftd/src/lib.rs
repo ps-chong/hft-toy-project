@@ -162,6 +162,7 @@ mod tests {
 
     #[tokio::test]
     async fn forwards_intent_and_never_waits_for_storage() {
+        let cancellation = CancellationToken::new();
         let mut rpmsg = MockRpmsg::new();
         rpmsg.expect_receive_intent().once().returning(|| {
             Ok(OrderIntent {
@@ -176,10 +177,15 @@ mod tests {
             .expect_send()
             .withf(|intent| intent.user_ref == 7)
             .once()
-            .returning(|_| Ok(()));
+            .returning({
+                let cancellation = cancellation.clone();
+                move |_| {
+                    cancellation.cancel();
+                    Ok(())
+                }
+            });
 
         let (storage_tx, mut storage_rx) = mpsc::channel(1);
-        let cancellation = CancellationToken::new();
         let daemon = Daemon::new(
             rpmsg,
             gateway,
@@ -190,7 +196,6 @@ mod tests {
         let task = tokio::spawn(daemon.run());
         let stored = storage_rx.recv().await;
         assert!(matches!(stored, Some(StorageCommand::Order(_))));
-        cancellation.cancel();
         let result = task.await;
         assert!(result.is_ok());
         let result = result.unwrap_or_else(|error| panic!("{error}"));
@@ -199,6 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn drops_analytics_when_bounded_queue_is_full() {
+        let cancellation = CancellationToken::new();
         let mut rpmsg = MockRpmsg::new();
         rpmsg.expect_receive_intent().once().returning(|| {
             Ok(OrderIntent {
@@ -209,7 +215,13 @@ mod tests {
             })
         });
         let mut gateway = MockGateway::new();
-        gateway.expect_send().once().returning(|_| Ok(()));
+        gateway.expect_send().once().returning({
+            let cancellation = cancellation.clone();
+            move |_| {
+                cancellation.cancel();
+                Ok(())
+            }
+        });
 
         let (storage_tx, _storage_rx) = mpsc::channel(1);
         storage_tx
@@ -219,7 +231,6 @@ mod tests {
                 event_type: "seed".to_owned(),
             }))
             .unwrap_or_else(|error| panic!("{error}"));
-        let cancellation = CancellationToken::new();
         let daemon = Daemon::new(
             rpmsg,
             gateway,
@@ -228,8 +239,6 @@ mod tests {
             Uuid::nil(),
         );
         let task = tokio::spawn(daemon.run());
-        tokio::task::yield_now().await;
-        cancellation.cancel();
         let stats = task
             .await
             .unwrap_or_else(|error| panic!("{error}"))
