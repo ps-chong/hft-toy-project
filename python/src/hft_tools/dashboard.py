@@ -68,7 +68,7 @@ class HftDashboard(App[None]):
             widget.set_classes("failed")
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover - CLI glue
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--socket", type=Path, default=Path("/run/hftd/control.sock"))
     args = parser.parse_args()

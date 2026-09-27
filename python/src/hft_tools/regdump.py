@@ -57,7 +57,7 @@ def decode_registers(image: bytes, schema: dict[str, Any]) -> dict[str, int]:
     return values
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:  # pragma: no cover - CLI glue
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", type=Path, default=Path("/dev/uio0"))
     parser.add_argument("--schema", type=Path, default=Path("protocol/schema/registers.yaml"))
@@ -65,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover - CLI glue
     args = build_parser().parse_args()
     schema = load_schema(args.schema)
     span = int(schema["span"], 16)

@@ -123,7 +123,7 @@ class ExchangeSimulator:
             SoupPacket(b"S", response_type + user_ref.to_bytes(4, "big")),
         )
 
-    async def run(self) -> None:
+    async def run(self) -> None:  # pragma: no cover - long-running service loop
         stop = asyncio.Event()
         publisher = asyncio.create_task(self.publish_feed(stop))
         server = await asyncio.start_server(self.handle_ouch, *self.ouch_bind)
@@ -137,7 +137,7 @@ class ExchangeSimulator:
                 await publisher
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:  # pragma: no cover - CLI glue
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--itch-target", type=parse_endpoint, default=("127.0.0.1", 9000))
     parser.add_argument("--ouch-bind", type=parse_endpoint, default=("127.0.0.1", 9001))
@@ -147,7 +147,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover - CLI glue
     args = build_parser().parse_args()
     simulator = ExchangeSimulator(
         itch_target=args.itch_target,
