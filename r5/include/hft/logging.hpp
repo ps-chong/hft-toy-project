@@ -27,6 +27,9 @@ public:
   constexpr explicit Logger(Sink& sink) noexcept : sink_(sink) {}
 
   template <typename... Args>
+  // fmt validates the format string at compile time and writes into fixed
+  // storage; embedded builds disable exceptions globally.
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   auto write(LogLevel level, fmt::format_string<Args...> format,
              Args&&... args) noexcept -> void {
     std::array<char, BufferSize> buffer{};

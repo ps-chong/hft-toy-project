@@ -44,11 +44,12 @@ public:
         ++stats_.rejected;
         continue;
       }
-      if (!result.assume_value()) {
+      auto maybe_intent = std::move(result).assume_value();
+      if (!maybe_intent) {
         ++stats_.ignored;
         continue;
       }
-      if (!intents_.try_push(std::move(*result.assume_value()))) {
+      if (!intents_.try_push(std::move(maybe_intent).value())) {
         ++stats_.output_overflows;
         fault_latched_ = true;
         auto fail_closed = configuration_.load();

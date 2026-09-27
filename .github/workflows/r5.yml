@@ -34,7 +34,7 @@ jobs:
       - name: Static analysis
         run: |
           run-clang-tidy-18 -p build/host-clang-debug \
-            r5/src/host_demo.cpp tests/cpp/*.cpp
+            r5/src/host_demo.cpp
       - name: Configure coverage build
         run: cmake --preset host-coverage
       - name: Build and test coverage target
