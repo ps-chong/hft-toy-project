@@ -1,0 +1,60 @@
+software =
+{
+    version = "0.1.0";
+    description = "ZCU102 HFT reference image";
+    hardware-compatibility: [ "hft-zcu102:1.0" ];
+
+    rootfs_a =
+    {
+        images: (
+            {
+                filename = "hft-image-hft-zcu102.ext4.gz";
+                type = "raw";
+                compressed = "zlib";
+                device = "/dev/disk/by-partlabel/rootfs_a";
+                installed-directly = true;
+                sha256 = "@ROOTFS_SHA256@";
+            },
+            {
+                filename = "boot-a.vfat";
+                type = "raw";
+                device = "/dev/disk/by-partlabel/boot_a";
+                installed-directly = true;
+                sha256 = "@BOOT_SHA256@";
+            }
+        );
+        bootenv: (
+            { name = "boot_slot"; value = "a"; },
+            { name = "upgrade_available"; value = "1"; },
+            { name = "bootcount"; value = "0"; },
+            { name = "bootlimit"; value = "3"; }
+        );
+    };
+
+    rootfs_b =
+    {
+        images: (
+            {
+                filename = "hft-image-hft-zcu102.ext4.gz";
+                type = "raw";
+                compressed = "zlib";
+                device = "/dev/disk/by-partlabel/rootfs_b";
+                installed-directly = true;
+                sha256 = "@ROOTFS_SHA256@";
+            },
+            {
+                filename = "boot-b.vfat";
+                type = "raw";
+                device = "/dev/disk/by-partlabel/boot_b";
+                installed-directly = true;
+                sha256 = "@BOOT_SHA256@";
+            }
+        );
+        bootenv: (
+            { name = "boot_slot"; value = "b"; },
+            { name = "upgrade_available"; value = "1"; },
+            { name = "bootcount"; value = "0"; },
+            { name = "bootlimit"; value = "3"; }
+        );
+    };
+}

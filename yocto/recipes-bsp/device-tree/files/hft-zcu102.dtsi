@@ -1,0 +1,47 @@
+/ {
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        r5_firmware: r5-firmware@3ed00000 {
+            no-map;
+            reg = <0x0 0x3ed00000 0x0 0x00040000>;
+        };
+
+        r5_vring0: r5-vring0@3ed40000 {
+            no-map;
+            reg = <0x0 0x3ed40000 0x0 0x00004000>;
+        };
+
+        r5_vring1: r5-vring1@3ed44000 {
+            no-map;
+            reg = <0x0 0x3ed44000 0x0 0x00004000>;
+        };
+
+        r5_vdev_buffer: r5-vdev-buffer@3ed48000 {
+            compatible = "shared-dma-pool";
+            no-map;
+            reg = <0x0 0x3ed48000 0x0 0x00100000>;
+        };
+
+        hft_pl_ring: hft-pl-ring@3ef00000 {
+            compatible = "shared-dma-pool";
+            no-map;
+            reg = <0x0 0x3ef00000 0x0 0x00100000>;
+        };
+    };
+};
+
+&rf5ss {
+    xlnx,cluster-mode = <0>;
+    status = "okay";
+};
+
+&r5f_0 {
+    memory-region = <&r5_firmware>, <&r5_vdev_buffer>,
+                    <&r5_vring0>, <&r5_vring1>, <&hft_pl_ring>;
+    mboxes = <&ipi_mailbox_rpu0 0>, <&ipi_mailbox_rpu0 1>;
+    mbox-names = "tx", "rx";
+    status = "okay";
+};

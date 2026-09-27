@@ -1,0 +1,14 @@
+[Unit]
+Description=Load Cortex-R5 HFT firmware
+After=systemd-modules-load.service
+Before=hftd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/hft-start-r5 start
+ExecStop=/usr/bin/hft-start-r5 stop
+RemainAfterExit=yes
+TimeoutStartSec=20
+
+[Install]
+WantedBy=multi-user.target

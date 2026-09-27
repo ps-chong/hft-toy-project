@@ -1,0 +1,2 @@
+d /run/hftd 0750 hft hft -
+d /data/hft 0750 hft hft -
