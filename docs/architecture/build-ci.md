@@ -47,10 +47,11 @@ tests, SQL migration validation, cargo-audit/deny, llvm-cov, and an
 
 ## FPGA verification
 
-GHDL provides a fast compatibility test. NVC is built at a pinned revision and
-collects statement, branch, and OSVVM functional coverage. VSG checks
-synthesizable RTL and testbenches. Vivado reports are local artifacts because
-the selected Windows installation is not a GitHub runner.
+GHDL provides a fast compatibility test. CI installs the pinned NVC 1.23.0
+Ubuntu 24.04 package and collects statement, branch, and functional coverage
+from the simulator databases. VSG checks synthesizable RTL and testbenches.
+Vivado reports are local artifacts because the selected Windows installation
+is not a GitHub runner.
 
 ## Workflow boundary
 
