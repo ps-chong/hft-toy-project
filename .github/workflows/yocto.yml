@@ -1,0 +1,47 @@
+name: Yocto image
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            yocto/downloads
+            yocto/sstate-cache
+          key: yocto-scarthgap-${{ hashFiles('yocto/kas/zcu102.yml', 'yocto/**/*.bb*') }}
+          restore-keys: yocto-scarthgap-
+      - name: Build Yocto container
+        run: docker build -t hft-yocto -f containers/yocto/Dockerfile .
+      - name: Validate layers and parse recipes
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            hft-yocto \
+            kas shell yocto/kas/zcu102.yml \
+              -c 'bitbake-layers show-layers && bitbake -p hft-image'
+      - name: Build image, SPDX, and SWUpdate artifacts
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            hft-yocto \
+            kas build yocto/kas/zcu102.yml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: zcu102-yocto-artifacts
+          path: |
+            yocto/build/tmp/deploy/images/hft-zcu102/*.wic*
+            yocto/build/tmp/deploy/images/hft-zcu102/*.swu
+            yocto/build/tmp/deploy/spdx/
+          if-no-files-found: warn

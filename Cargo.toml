@@ -9,6 +9,7 @@ members = [
   "linux/crates/rpmsg",
   "linux/crates/storage"
 ]
+exclude = ["linux/crates/protocol/fuzz"]
 
 [workspace.package]
 version = "0.1.0"

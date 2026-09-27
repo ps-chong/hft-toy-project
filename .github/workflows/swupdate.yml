@@ -1,0 +1,57 @@
+name: SWUpdate bundle
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "deploy/swupdate/**"
+      - "yocto/recipes-support/swupdate/**"
+      - "python/tests/test_swupdate_bundle.py"
+      - ".github/workflows/swupdate.yml"
+  pull_request:
+    branches: [develop]
+    paths:
+      - "deploy/swupdate/**"
+      - "yocto/recipes-support/swupdate/**"
+      - "python/tests/test_swupdate_bundle.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+      - name: Test deterministic newc bundle builder
+        run: |
+          python -m pip install pytest
+          pytest -q python/tests/test_swupdate_bundle.py
+      - name: Build and verify a signed contract bundle
+        run: |
+          mkdir -p artifacts
+          printf 'rootfs-contract\n' | gzip -n > artifacts/hft-image-hft-zcu102.ext4.gz
+          printf 'boot-contract\n' > artifacts/boot.vfat
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj '/CN=hft-ci-contract/' \
+            -keyout "$RUNNER_TEMP/key.pem" \
+            -out "$RUNNER_TEMP/cert.pem"
+          python deploy/swupdate/build_bundle.py \
+            --description deploy/swupdate/sw-description \
+            --rootfs artifacts/hft-image-hft-zcu102.ext4.gz \
+            --boot artifacts/boot.vfat \
+            --key "$RUNNER_TEMP/key.pem" \
+            --certificate "$RUNNER_TEMP/cert.pem" \
+            --output artifacts/hft-contract.swu
+          sha256sum artifacts/hft-contract.swu > artifacts/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: swupdate-contract
+          path: |
+            artifacts/hft-contract.swu
+            artifacts/SHA256SUMS
