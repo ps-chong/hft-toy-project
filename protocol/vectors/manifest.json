@@ -1,5 +1,13 @@
 {
-  "schema_sha256": "5a47d5ed846bbf3b4b9a7e8d764e281bd5ad839b88d20d9cb28e7e5070d18658",
+  "schema_sha256": "b467d912ddcf2b7d7ab2351d1354c236773f6ccfb6a16af5ffeff283ca808fcf",
+  "telemetry_vectors": [
+    {
+      "file": "telemetry_event.bin",
+      "record_type": 1,
+      "size": 64,
+      "valid": true
+    }
+  ],
   "vectors": [
     {
       "file": "mold_add_order.bin",

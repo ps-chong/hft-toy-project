@@ -84,6 +84,9 @@ def configure_suite():
         "risk_guard.vhd",
         "signal_engine.vhd",
         "hft_pipeline.vhd",
+        "axis64_to_byte.vhd",
+        "udp_ipv4_rx.vhd",
+        "telemetry_udp_tx.vhd",
         "myd_czu5ev_v2_hft_top.vhd",
     ):
         lib.add_source_file(ROOT / "zynq/ultrascale+/rtl" / source)

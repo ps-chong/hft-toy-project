@@ -1,6 +1,6 @@
 # Generated PL register map
 
-Schema SHA-256: `5a47d5ed846bbf3b4b9a7e8d764e281bd5ad839b88d20d9cb28e7e5070d18658`
+Schema SHA-256: `b467d912ddcf2b7d7ab2351d1354c236773f6ccfb6a16af5ffeff283ca808fcf`
 
 Base address: `0xA0000000`; span: `0x00010000`.
 

@@ -81,3 +81,9 @@ def test_vector_manifest_references_existing_files() -> None:
             check=False,
         )
         assert ignored.returncode == 1
+
+    for vector in manifest["telemetry_vectors"]:
+        payload = vector_dir / vector["file"]
+        assert payload.is_file()
+        assert payload.stat().st_size == vector["size"]
+        assert payload.read_bytes()[2] == vector["record_type"]

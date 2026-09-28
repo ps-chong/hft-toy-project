@@ -56,6 +56,9 @@ set sources [list \
   [file join $repo_root zynq ultrascale+ rtl risk_guard.vhd] \
   [file join $repo_root zynq ultrascale+ rtl signal_engine.vhd] \
   [file join $repo_root zynq ultrascale+ rtl hft_pipeline.vhd] \
+  [file join $repo_root zynq ultrascale+ rtl axis64_to_byte.vhd] \
+  [file join $repo_root zynq ultrascale+ rtl udp_ipv4_rx.vhd] \
+  [file join $repo_root zynq ultrascale+ rtl telemetry_udp_tx.vhd] \
   [file join $repo_root zynq ultrascale+ rtl myd_czu5ev_v2_hft_top.vhd]]
 
 foreach source $sources {
