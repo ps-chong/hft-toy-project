@@ -15,9 +15,14 @@ SWUPDATE_SIGNING = "${@'CMS' if d.getVar('HFT_SWUPDATE_SIGNING') == '1' else ''}
 SWUPDATE_PRIVATE_KEY = "${HFT_SWUPDATE_PRIVATE_KEY}"
 SWUPDATE_CERTIFICATE = "${HFT_SWUPDATE_CERTIFICATE}"
 
-do_swuimage:prepend() {
-    if [ "${HFT_SWUPDATE_SIGNING}" = "1" ]; then
-        test -r "${HFT_SWUPDATE_PRIVATE_KEY}" || bbfatal "missing SWUpdate private key"
-        test -r "${HFT_SWUPDATE_CERTIFICATE}" || bbfatal "missing SWUpdate certificate"
-    fi
+python do_swuimage:prepend() {
+    if d.getVar("HFT_SWUPDATE_SIGNING") == "1":
+        import os
+
+        private_key = d.getVar("HFT_SWUPDATE_PRIVATE_KEY")
+        certificate = d.getVar("HFT_SWUPDATE_CERTIFICATE")
+        if not private_key or not os.path.isfile(private_key):
+            bb.fatal("missing SWUpdate private key")
+        if not certificate or not os.path.isfile(certificate):
+            bb.fatal("missing SWUpdate certificate")
 }
