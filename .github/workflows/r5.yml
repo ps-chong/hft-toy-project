@@ -34,7 +34,7 @@ jobs:
       - name: Static analysis
         run: |
           run-clang-tidy-18 -p build/host-clang-debug \
-            r5/src/host_demo.cpp
+            cortex/r5/src/host_demo.cpp
       - name: Configure coverage build
         run: cmake --preset host-coverage
       - name: Build and test coverage target
@@ -43,11 +43,11 @@ jobs:
           ctest --preset host-coverage
           mkdir -p coverage-reports/cpp
           gcovr --root . build/host-coverage \
-            --filter 'r5/' --filter 'tests/cpp/' \
+            --filter 'cortex/r5/' --filter 'tests/cpp/' \
             --exclude 'build/' \
             --xml-pretty --output coverage-reports/cpp/coverage.xml
           gcovr --root . build/host-coverage \
-            --filter 'r5/' --filter 'tests/cpp/' \
+            --filter 'cortex/r5/' --filter 'tests/cpp/' \
             --exclude 'build/' \
             --html-details --output coverage-reports/cpp/index.html
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

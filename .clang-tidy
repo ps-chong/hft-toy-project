@@ -13,7 +13,7 @@ Checks: >-
   readability-const-return-type,
   readability-container-size-empty
 WarningsAsErrors: '*'
-HeaderFilterRegex: '(^|/)(r5|protocol)/'
+HeaderFilterRegex: '(^|/)(cortex/r5|protocol)/'
 CheckOptions:
   modernize-use-trailing-return-type.TransformLambda: false
   performance-unnecessary-value-param.AllowedTypes: 'std::span;std::string_view'

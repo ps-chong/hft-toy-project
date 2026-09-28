@@ -7,7 +7,7 @@ review all language diffs together. Never edit generated output directly.
 
 ## FPGA simulation
 
-List VUnit cases with `fpga/sim/run.py --list`. Re-run one case by its full
+List VUnit cases with `zynq/ultrascale+/sim/run.py --list`. Re-run one case by its full
 name and add `--gtkwave-fmt ghw` when a waveform is needed. Inspect gap,
 malformed, overflow, and killed pulses before debugging downstream behavior.
 

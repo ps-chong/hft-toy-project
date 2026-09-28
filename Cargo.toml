@@ -1,15 +1,15 @@
 [workspace]
 resolver = "3"
 members = [
-  "linux/crates/analytics",
-  "linux/crates/hftctl",
-  "linux/crates/hftd",
-  "linux/crates/ouch",
-  "linux/crates/protocol",
-  "linux/crates/rpmsg",
-  "linux/crates/storage"
+  "cortex/a53/analytics",
+  "cortex/a53/hftctl",
+  "cortex/a53/hftd",
+  "cortex/a53/ouch",
+  "cortex/a53/protocol",
+  "cortex/a53/rpmsg",
+  "cortex/a53/storage"
 ]
-exclude = ["linux/crates/protocol/fuzz"]
+exclude = ["cortex/a53/protocol/fuzz"]
 
 [workspace.package]
 version = "0.1.0"
