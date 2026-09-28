@@ -246,7 +246,7 @@ begin
       elsif ((control_clear = '1') and (control_kill = '0') and
              (sfp_rx_link_up = '1')) then
         network_fault_i <= '0';
-      elsif ((udp_malformed_i = '1') or
+      elsif ((sfp_rx_link_up = '0') or (udp_malformed_i = '1') or
              ((s_rx_axis_tvalid = '1') and (s_rx_axis_tready = '1') and
                (s_rx_axis_tlast = '1') and (s_rx_axis_tuser = '1'))) then
         network_fault_i <= '1';
