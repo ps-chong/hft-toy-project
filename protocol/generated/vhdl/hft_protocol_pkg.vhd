@@ -7,7 +7,11 @@ package hft_protocol_pkg is
   constant ABI_VERSION : natural := 1;
   constant MOLDUDP64_HEADER_SIZE : natural := 20;
   constant IPC_RECORD_SIZE : natural := 64;
-  constant SCHEMA_SHA256 : string := "5a47d5ed846bbf3b4b9a7e8d764e281bd5ad839b88d20d9cb28e7e5070d18658";
+  constant TELEMETRY_PAYLOAD_SIZE : natural := 64;
+  constant TELEMETRY_SOURCE_PORT : natural := 47000;
+  constant TELEMETRY_DESTINATION_PORT : natural :=
+    47001;
+  constant SCHEMA_SHA256 : string := "b467d912ddcf2b7d7ab2351d1354c236773f6ccfb6a16af5ffeff283ca808fcf";
   constant ITCH_SYSTEM_EVENT : std_logic_vector(7 downto 0) := x"53";
   constant ITCH_STOCK_DIRECTORY : std_logic_vector(7 downto 0) := x"52";
   constant ITCH_ADD_ORDER : std_logic_vector(7 downto 0) := x"41";

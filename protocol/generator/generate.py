@@ -35,7 +35,12 @@ def rust_hex(value: str) -> str:
     return "0x" + "_".join(reversed(groups))
 
 
-def cpp_header(itch: dict[str, Any], registers: dict[str, Any], digest: str) -> str:
+def cpp_header(
+    itch: dict[str, Any],
+    registers: dict[str, Any],
+    telemetry: dict[str, Any],
+    digest: str,
+) -> str:
     message_lines = "\n".join(
         f"  {message['name']} = '{message['type']}'," for message in itch["messages"]
     )
@@ -61,6 +66,11 @@ namespace hft::protocol {{
 inline constexpr std::uint16_t abi_version = 1;
 inline constexpr std::size_t moldudp64_header_size = 20;
 inline constexpr std::size_t ipc_record_size = 64;
+inline constexpr std::size_t telemetry_payload_size = {telemetry["payload_size"]};
+inline constexpr std::uint16_t telemetry_source_port =
+    {telemetry["default_source_port"]};
+inline constexpr std::uint16_t telemetry_destination_port =
+    {telemetry["default_destination_port"]};
 inline constexpr char schema_sha256[] = "{digest}";
 
 enum class itch_type : std::uint8_t {{
@@ -101,7 +111,12 @@ inline constexpr std::uintptr_t base = {registers["base_address"]}U;
 """
 
 
-def rust_module(itch: dict[str, Any], registers: dict[str, Any], digest: str) -> str:
+def rust_module(
+    itch: dict[str, Any],
+    registers: dict[str, Any],
+    telemetry: dict[str, Any],
+    digest: str,
+) -> str:
     variants = "\n".join(
         f"    {''.join(part.title() for part in message['name'].split('_'))} = b'{message['type']}',"
         for message in itch["messages"]
@@ -114,6 +129,9 @@ def rust_module(itch: dict[str, Any], registers: dict[str, Any], digest: str) ->
 pub const ABI_VERSION: u16 = 1;
 pub const MOLDUDP64_HEADER_SIZE: usize = 20;
 pub const IPC_RECORD_SIZE: usize = 64;
+pub const TELEMETRY_PAYLOAD_SIZE: usize = {telemetry["payload_size"]};
+pub const TELEMETRY_SOURCE_PORT: u16 = {telemetry["default_source_port"]};
+pub const TELEMETRY_DESTINATION_PORT: u16 = {telemetry["default_destination_port"]};
 pub const SCHEMA_SHA256: &str = "{digest}";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -129,7 +147,12 @@ pub mod reg {{
 """
 
 
-def vhdl_package(itch: dict[str, Any], registers: dict[str, Any], digest: str) -> str:
+def vhdl_package(
+    itch: dict[str, Any],
+    registers: dict[str, Any],
+    telemetry: dict[str, Any],
+    digest: str,
+) -> str:
     type_lines = "\n".join(
         f"  constant ITCH_{message['name'].upper()} : std_logic_vector(7 downto 0) "
         f':= x"{ord(message["type"]):02X}";'
@@ -148,6 +171,10 @@ package hft_protocol_pkg is
   constant ABI_VERSION : natural := 1;
   constant MOLDUDP64_HEADER_SIZE : natural := 20;
   constant IPC_RECORD_SIZE : natural := 64;
+  constant TELEMETRY_PAYLOAD_SIZE : natural := {telemetry["payload_size"]};
+  constant TELEMETRY_SOURCE_PORT : natural := {telemetry["default_source_port"]};
+  constant TELEMETRY_DESTINATION_PORT : natural :=
+    {telemetry["default_destination_port"]};
   constant SCHEMA_SHA256 : string := "{digest}";
 {type_lines}
 {register_lines}
@@ -208,9 +235,26 @@ def mold_packet(sequence: int, messages: list[bytes]) -> bytes:
     return b"TESTSESS01" + struct.pack(">QH", sequence, len(messages)) + body
 
 
+def telemetry_event_payload() -> bytes:
+    return b"".join(
+        (
+            struct.pack(">HBBBBH", 1, 1, ord("A"), ord("B"), 0, 0),
+            struct.pack(">Q", 1),
+            struct.pack(">Q", 123_456),
+            struct.pack(">Q", 0x0102_0304_0506_0708),
+            b"ACME    ",
+            struct.pack(">Q", 1_234_500),
+            struct.pack(">I", 100),
+            struct.pack(">I", 0),
+            bytes(8),
+        )
+    )
+
+
 def outputs() -> dict[Path, bytes]:
     itch = load("itch50.yaml")
     registers = load("registers.yaml")
+    telemetry = load("telemetry_udp.yaml")
     digest = schema_digest()
     add = mold_packet(1, [itch_add_message()])
     cancel = mold_packet(2, [itch_cancel_message()])
@@ -229,16 +273,24 @@ def outputs() -> dict[Path, bytes]:
                 "valid": False,
             },
         ],
+        "telemetry_vectors": [
+            {
+                "file": "telemetry_event.bin",
+                "record_type": 1,
+                "size": telemetry["payload_size"],
+                "valid": True,
+            }
+        ],
     }
     return {
         ROOT / "protocol/generated/cpp/hft_protocol.hpp": cpp_header(
-            itch, registers, digest
+            itch, registers, telemetry, digest
         ).encode(),
         ROOT / "protocol/generated/rust/protocol_generated.rs": rust_module(
-            itch, registers, digest
+            itch, registers, telemetry, digest
         ).encode(),
         ROOT / "protocol/generated/vhdl/hft_protocol_pkg.vhd": vhdl_package(
-            itch, registers, digest
+            itch, registers, telemetry, digest
         ).encode(),
         ROOT / "docs/generated/registers.md": register_markdown(
             registers, digest
@@ -250,6 +302,7 @@ def outputs() -> dict[Path, bytes]:
         ROOT / "protocol/vectors/mold_cancel.bin": cancel,
         ROOT / "protocol/vectors/mold_heartbeat.bin": heartbeat,
         ROOT / "protocol/vectors/mold_truncated.bin": malformed,
+        ROOT / "protocol/vectors/telemetry_event.bin": telemetry_event_payload(),
     }
 
 

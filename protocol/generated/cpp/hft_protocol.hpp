@@ -11,7 +11,12 @@ namespace hft::protocol {
 inline constexpr std::uint16_t abi_version = 1;
 inline constexpr std::size_t moldudp64_header_size = 20;
 inline constexpr std::size_t ipc_record_size = 64;
-inline constexpr char schema_sha256[] = "5a47d5ed846bbf3b4b9a7e8d764e281bd5ad839b88d20d9cb28e7e5070d18658";
+inline constexpr std::size_t telemetry_payload_size = 64;
+inline constexpr std::uint16_t telemetry_source_port =
+    47000;
+inline constexpr std::uint16_t telemetry_destination_port =
+    47001;
+inline constexpr char schema_sha256[] = "b467d912ddcf2b7d7ab2351d1354c236773f6ccfb6a16af5ffeff283ca808fcf";
 
 enum class itch_type : std::uint8_t {
   system_event = 'S',
