@@ -74,7 +74,7 @@ def render_html(summaries: dict[str, Summary]) -> str:
 th,td{{border:1px solid #888;padding:.5rem;text-align:right}}th:first-child,
 td:first-child{{text-align:left}}</style></head><body>
 <h1>HFT latency summary</h1>
-<p>Host values are functional baselines, not ZCU102 measurements.</p>
+<p>Host values are functional baselines, not MYD-CZU5EV-V2 measurements.</p>
 <table><thead><tr><th>Domain</th><th>N</th><th>Min</th><th>p50</th>
 <th>p99</th><th>p99.9</th><th>Max</th></tr></thead><tbody>{rows}</tbody></table>
 </body></html>

@@ -9,7 +9,7 @@ use tokio::{
 };
 
 #[derive(Debug, Parser)]
-#[command(about = "Control and inspect the local ZCU102 HFT daemon")]
+#[command(about = "Control and inspect the local MYD-CZU5EV-V2 HFT daemon")]
 struct Cli {
     #[arg(long, default_value = "/run/hftd/control.sock")]
     socket: PathBuf,

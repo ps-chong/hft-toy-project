@@ -1,9 +1,11 @@
 flowchart LR
-    Feed["MoldUDP64 and ITCH feed"] --> Mac["10G MAC or DMA replay"]
-    Mac --> PL["VHDL validation, sequencing, book, signal"]
+    Feed["MoldUDP64 and ITCH UDP feed"] --> Rx["SFP+ lane 0 and 10G MAC"]
+    Rx --> PL["IPv4 UDP validation, sequencing, book, signal"]
+    PL --> Tx["SFP+ lane 1 UDP telemetry"]
     PL -->|Normalized event ring| R5["FreeRTOS cooperative executor"]
     R5 -->|Approved intent over RPMsg| A53["Rust hftd actors"]
     A53 -->|SoupBinTCP and OUCH| Exchange["Exchange simulator"]
     A53 --> Journal["journald"]
-    A53 --> Postgres["PostgreSQL"]
+    Nvme["PCIe NVMe hft_data"] --> Postgres["PostgreSQL"]
+    A53 --> Postgres
     A53 --> Api["CLI and local API"]

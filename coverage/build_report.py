@@ -59,7 +59,7 @@ def render(summaries: list[Summary]) -> str:
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>ZCU102 HFT coverage</title>
+  <title>MYD-CZU5EV-V2 HFT coverage</title>
   <style>
     body {{ font: 16px system-ui; margin: 2rem; max-width: 80rem; }}
     table {{ border-collapse: collapse; width: 100%; }}
@@ -67,7 +67,7 @@ def render(summaries: list[Summary]) -> str:
   </style>
 </head>
 <body>
-  <h1>ZCU102 HFT coverage</h1>
+  <h1>MYD-CZU5EV-V2 HFT coverage</h1>
   <p>Generated from handwritten-code Cobertura reports. Vendor and generated
   code exclusions are documented by each layer.</p>
   <table>

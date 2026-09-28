@@ -32,6 +32,7 @@ architecture tb of tb_telemetry_udp_tx is
   signal axis_keep  : std_logic_vector(7 downto 0);
   signal axis_valid : std_logic;
   signal axis_last  : std_logic;
+  signal axis_ready : std_logic := '1';
 
   signal captured       : byte_array_t                  := (others => (others => '0'));
   signal captured_count : natural range 0 to frame_size := 0;
@@ -55,7 +56,7 @@ begin
       m_axis_tkeep  => axis_keep,
       m_axis_tvalid => axis_valid,
       m_axis_tlast  => axis_last,
-      m_axis_tready => '1'
+      m_axis_tready => axis_ready
     );
 
   monitor : process (clk) is
@@ -70,7 +71,7 @@ begin
         captured_count <= 0;
         last_keep      <= (others => '0');
         frame_done     <= '0';
-      elsif (axis_valid = '1') then
+      elsif ((axis_valid = '1') and (axis_ready = '1')) then
         count_i := captured_count;
 
         for lane in 0 to 7 loop
@@ -99,6 +100,7 @@ begin
 
       rst         <= '1';
       event_valid <= '0';
+      axis_ready  <= '1';
       wait for 3 * clk_period;
       wait until rising_edge(clk);
       rst         <= '0';
@@ -144,6 +146,21 @@ begin
         check_equal(captured(47), std_logic_vector'(x"24"));
         check_equal(captured(97), std_logic_vector'(x"03"));
         check_equal(last_keep, std_logic_vector'(x"03"));
+      elsif run("holds telemetry frame under backpressure") then
+        reset_dut;
+        event_data.kind <= EVENT_ADD;
+        event_data.side <= SIDE_BUY;
+        event_valid     <= '1';
+        wait until rising_edge(clk) and event_ready = '1';
+        event_valid     <= '0';
+        axis_ready      <= '0';
+        wait for 3 * clk_period;
+        check_equal(axis_valid, '1');
+        check_equal(event_ready, '0');
+        check_equal(captured_count, 0);
+        axis_ready      <= '1';
+        wait until frame_done = '1';
+        check_equal(captured_count, frame_size);
       end if;
 
     end loop;

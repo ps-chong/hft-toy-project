@@ -4,7 +4,10 @@
 
 ```mermaid
 flowchart LR
-    Source["DMA replay or 10G MAC AXI stream"] --> Mold["MoldUDP64 framing"]
+    SfpRx["SFP+ GTH lane 0"] --> MacRx["10G MAC/PCS RX"]
+    MacRx --> Axis["64-bit AXI stream"]
+    Axis --> Udp["Ethernet IPv4 UDP validation"]
+    Udp --> Mold["MoldUDP64 framing"]
     Mold --> Itch["ITCH parser"]
     Itch --> Book["Reference store and top-of-book"]
     Book --> Signal["Spread and imbalance signal"]
@@ -14,13 +17,22 @@ flowchart LR
     Control["AXI-Lite control snapshot"] --> PreRisk
     Mold --> Counters["Gap and malformed counters"]
     Book --> Counters
+    PreRisk --> Telemetry["64-byte UDP telemetry"]
+    Telemetry --> MacTx["10G MAC/PCS TX"]
+    MacTx --> SfpTx["SFP+ GTH lane 1"]
 ```
 
-The synthesizable core accepts one byte per cycle in the open-source reference
-simulation. The future MAC wrapper widens this boundary to the selected AMD AXI
-stream width while preserving packet start/end markers. Backpressure propagates
-only while a complete normalized event waits for the R5 ring; production sizing
-must ensure normal traffic never reaches that state.
+`axis64_to_byte` terminates the simulator-friendly 64-bit MAC boundary and
+preserves `tkeep`, frame start, frame end, and backpressure. `udp_ipv4_rx`
+accepts Ethernet II, fixed-header IPv4, and UDP only. It verifies destination
+MAC/IP/port, IPv4 checksum, lengths, non-fragmentation, and the zero UDP
+checksum policy before exposing the MoldUDP64 payload. Unsupported or malformed
+traffic is counted and never enters the trading pipeline.
+
+`telemetry_udp_tx` emits fixed 64-byte records containing normalized events,
+status flags, and drop counters. It uses static destination MAC/IP/port values,
+so ARP and route discovery remain outside the deterministic hot path. Live
+order entry still uses the R5/A53 SoupBinTCP/OUCH path.
 
 ## Clock and reset domains
 
@@ -38,9 +50,9 @@ flowchart TB
     Reset --> Bram
 ```
 
-The current `sim-dma` core has one `axis_clk`; asynchronous FIFO wrappers are a
-board-integration boundary because no XSA or physical board exists yet. Vivado
-CDC findings at that boundary must be resolved before hardware deployment.
+The current OOC core has one `axis_clk` at 156.25 MHz. The AMD MAC/PCS and GTH
+reset/CDC implementation remain at the proprietary IP boundary. Vivado CDC
+findings at that boundary must be resolved before hardware deployment.
 
 ## State and capacity
 
@@ -64,6 +76,9 @@ visible atomically; partially written risk parameters are never used.
 
 | Condition | Result |
 | --- | --- |
+| Wrong MAC/IP/UDP destination | Drop counter; no trading-state change |
+| IPv4 checksum, fragment, or length error | Malformed counter and kill latch |
+| RX MAC error or link loss | Network fault and kill latch |
 | Early end-of-packet | Malformed counter and kill latch |
 | Sequence mismatch | Gap counter, stale state, kill latch |
 | Unknown framed ITCH type | Skip and unknown counter |
@@ -74,8 +89,11 @@ visible atomically; partially written risk parameters are never used.
 ## Vivado profiles
 
 `sim-dma` performs license-free out-of-context synthesis of the VHDL core.
-`sfp10g` checks that the AMD 10G/25G subsystem exists but deliberately defers
-MAC/PCS and pin integration until a board and appropriate license are available.
+`sfp10g` checks that the AMD 10G/25G subsystem exists. The repo-local board
+definition selects `xczu5ev-sfvc784-2-e`; its Bank 224 constraints reserve GTH
+lanes 0 and 1 plus `MGTREFCLK0`. The public MYIR pinout does not identify the
+physical cage order or provide a verified ZynqMP DDR/PS preset, so integrated
+bitstream/XSA generation deliberately fails.
 The exact local command is:
 
 ```powershell

@@ -41,7 +41,7 @@ class HftDashboard(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.title = "ZCU102 HFT"
+        self.title = "MYD-CZU5EV-V2 HFT"
         self.set_interval(1.0, self.refresh_status)
 
     async def refresh_status(self) -> None:
