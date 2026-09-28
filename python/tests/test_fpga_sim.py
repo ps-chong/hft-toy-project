@@ -3,10 +3,20 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
+from xml.etree import ElementTree
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+BOARD_DIR = (
+    ROOT
+    / "zynq"
+    / "ultrascale+"
+    / "board_files"
+    / "myirtech.com"
+    / "myd_czu5ev_v2"
+    / "1.0"
+)
 
 
 def load_run_module():
@@ -32,6 +42,21 @@ def test_coverage_databases_prefer_ncdb(tmp_path: Path) -> None:
     assert run.coverage_databases(tmp_path, cwd_dump.parent) == sorted(
         [cwd_dump, database]
     )
+
+
+def test_myd_board_definition_declares_verified_part_and_gth_pins() -> None:
+    board = ElementTree.parse(BOARD_DIR / "board.xml").getroot()
+    component = board.find("./components/component")
+    assert component is not None
+    assert component.attrib["part_name"] == "xczu5ev-sfvc784-2-e"
+
+    pins = ElementTree.parse(BOARD_DIR / "part0_pins.xml").getroot()
+    locations = {pin.attrib["name"]: pin.attrib["loc"] for pin in pins.findall("pin")}
+    assert locations["sfp_gt0_tx_p"] == "W4"
+    assert locations["sfp_gt0_rx_p"] == "Y2"
+    assert locations["sfp_gt1_tx_p"] == "U4"
+    assert locations["sfp_gt1_rx_p"] == "V2"
+    assert locations["sfp_refclk_p"] == "Y6"
 
 
 def test_export_nvc_coverage_copies_single_database(

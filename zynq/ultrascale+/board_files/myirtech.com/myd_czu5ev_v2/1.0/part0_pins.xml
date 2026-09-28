@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<part_info part_name="xczu5ev-sfvc784-2-e">
+  <!-- Bank 224 PL GTH lanes from MYC-CZU3EG/4EV/5EV-V2 pinout V1.1. -->
+  <pin index="0" name="sfp_gt0_tx_p" loc="W4"/>
+  <pin index="1" name="sfp_gt0_tx_n" loc="W3"/>
+  <pin index="2" name="sfp_gt0_rx_p" loc="Y2"/>
+  <pin index="3" name="sfp_gt0_rx_n" loc="Y1"/>
+  <pin index="4" name="sfp_gt1_tx_p" loc="U4"/>
+  <pin index="5" name="sfp_gt1_tx_n" loc="U3"/>
+  <pin index="6" name="sfp_gt1_rx_p" loc="V2"/>
+  <pin index="7" name="sfp_gt1_rx_n" loc="V1"/>
+  <pin index="8" name="sfp_gt2_tx_p" loc="R4"/>
+  <pin index="9" name="sfp_gt2_tx_n" loc="R3"/>
+  <pin index="10" name="sfp_gt2_rx_p" loc="T2"/>
+  <pin index="11" name="sfp_gt2_rx_n" loc="T1"/>
+  <pin index="12" name="sfp_gt3_tx_p" loc="N4"/>
+  <pin index="13" name="sfp_gt3_tx_n" loc="N3"/>
+  <pin index="14" name="sfp_gt3_rx_p" loc="P2"/>
+  <pin index="15" name="sfp_gt3_rx_n" loc="P1"/>
+  <pin index="16" name="sfp_refclk_p" loc="Y6"/>
+  <pin index="17" name="sfp_refclk_n" loc="Y5"/>
+
+  <!-- Cage control signals; GT-lane-to-cage placement requires hardware verification. -->
+  <pin index="18" name="sfp_rb_tx_disable" iostandard="LVCMOS18" loc="P9"/>
+  <pin index="19" name="sfp_rt_tx_disable" iostandard="LVCMOS18" loc="H2"/>
+  <pin index="20" name="sfp_lb_tx_disable" iostandard="LVCMOS18" loc="AE5"/>
+  <pin index="21" name="sfp_lt_tx_disable" iostandard="LVCMOS18" loc="AF5"/>
+</part_info>

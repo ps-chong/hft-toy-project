@@ -5,7 +5,7 @@ library ieee;
 library work;
   use work.hft_types_pkg.all;
 
-entity zcu102_hft_top is
+entity myd_czu5ev_v2_hft_top is
   port (
     axis_clk : in    std_logic;
     axis_rst : in    std_logic;
@@ -47,9 +47,9 @@ entity zcu102_hft_top is
     status_rejected   : out   std_logic;
     expected_sequence : out   std_logic_vector(63 downto 0)
   );
-end entity zcu102_hft_top;
+end entity myd_czu5ev_v2_hft_top;
 
-architecture rtl of zcu102_hft_top is
+architecture rtl of myd_czu5ev_v2_hft_top is
 
   signal event_i             : market_event_t;
   signal signal_side_i       : byte_t;

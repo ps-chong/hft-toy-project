@@ -84,7 +84,7 @@ def configure_suite():
         "risk_guard.vhd",
         "signal_engine.vhd",
         "hft_pipeline.vhd",
-        "zcu102_hft_top.vhd",
+        "myd_czu5ev_v2_hft_top.vhd",
     ):
         lib.add_source_file(ROOT / "zynq/ultrascale+/rtl" / source)
     lib.add_source_files(ROOT / "zynq/ultrascale+/tb" / "tb_*.vhd")
