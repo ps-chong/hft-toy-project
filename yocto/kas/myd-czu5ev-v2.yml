@@ -26,6 +26,14 @@ repos:
       meta-networking:
       meta-filesystems:
 
+  meta-arm:
+    url: https://git.yoctoproject.org/meta-arm
+    commit: 0a4b911d9fd63ab29c4532a907fae3282dbdcfe4
+    path: build/repos/meta-arm
+    layers:
+      meta-arm:
+      meta-arm-toolchain:
+
   meta-xilinx:
     url: https://github.com/Xilinx/meta-xilinx.git
     commit: 7967c6c8882d43518e8ec84eaadad797b190e6a1
@@ -33,20 +41,8 @@ repos:
     layers:
       meta-xilinx-core:
       meta-xilinx-bsp:
-      meta-xilinx-standalone-sdt:
-
-  meta-xilinx-tools:
-    url: https://github.com/Xilinx/meta-xilinx-tools.git
-    commit: 94fea5f042e34522e9caf70c134817a046ca7e08
-    path: build/repos/meta-xilinx-tools
-
-  meta-amd-adaptive-socs:
-    url: https://github.com/Xilinx/meta-amd-adaptive-socs.git
-    commit: eb06eb73417a86fa649573dc4513fa84ffd0ca7a
-    path: build/repos/meta-amd-adaptive-socs
-    layers:
-      meta-amd-adaptive-socs-core:
-      meta-amd-adaptive-socs-bsp:
+      meta-xilinx-mali400:
+      meta-xilinx-multimedia:
 
   meta-openamp:
     url: https://github.com/Xilinx/meta-openamp.git
