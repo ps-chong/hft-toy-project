@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-    Source["develop branch"] --> FPGA["FPGA hosted simulation"]
+    Source["develop branch"] --> FPGA["ZU5EV PL hosted simulation"]
     Source --> R5Host["R5 host GoogleTest and clang-tidy"]
     Source --> R5Cross["R5 Arm GNU cross-link"]
     Source --> Rust["A53 Rust tests and cross-link"]
@@ -20,12 +20,14 @@ flowchart LR
     SWU --> Reports
 ```
 
-## Local Windows FPGA build
+## Local Windows programmable-logic build
 
 The source belongs at `C:\Users\121679\hft-toy-project`; Vivado belongs at
 `C:\AMDDesignTools\2026.1\Vivado`. `verify-tools.ps1` checks both assumptions and
 the version. `build-fpga.ps1` invokes one Tcl entry point, places generated state
 under `build\vivado`, and never opens hardware manager.
+The Tcl flow registers `zynq/ultrascale+/board_files` and targets
+`xczu5ev-sfvc784-2-e`; it does not require a global board-file installation.
 
 ## C++ build matrix
 
@@ -45,7 +47,7 @@ Rust 1.97.1/Edition 2024 runs fmt, Clippy, unit/property tests, mockall actor
 tests, SQL migration validation, cargo-audit/deny, llvm-cov, and an
 `aarch64-unknown-linux-gnu` release build. Cargo.lock is committed.
 
-## FPGA verification
+## Programmable-logic verification
 
 GHDL provides a fast compatibility test. CI installs the pinned NVC 1.23.0
 Ubuntu 24.04 package and collects statement, branch, and functional coverage

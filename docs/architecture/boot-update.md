@@ -19,14 +19,21 @@ sequenceDiagram
     UBoot->>Linux: Kernel, DTB, rootfs
     Linux->>R5: remoteproc loads hft-r5.elf
     R5-->>Linux: RPMsg endpoint appears
+    Linux->>Linux: Mount labelled NVMe data and prepare ownership
     Linux->>Linux: Start hftd, PostgreSQL, health confirmation
 ```
 
 ## Partition layout
 
-The WIC image has `boot_a`, `boot_b`, `rootfs_a`, `rootfs_b`, and `hft_data`.
-The active root is read-only where practical. PostgreSQL, update state, and
-operator configuration live on `hft_data` and are not replaced by an OS update.
+The 4 GB eMMC WIC image has 128 MiB `boot_a`/`boot_b` partitions and 1536 MiB
+`rootfs_a`/`rootfs_b` partitions, for a 3328 MiB fixed layout. The active root
+is read-only where practical.
+
+Persistent PostgreSQL, analytics, and operator configuration live on an NVMe
+GPT partition named `hft_data`, mounted at `/data`. Provisioning is a separate,
+explicit command requiring both an NVMe device path and `--yes`; boot services
+never format media. A missing volume prevents PostgreSQL and `hftd` from
+starting but does not modify the SSD or eMMC.
 
 ## SWUpdate transaction
 
@@ -60,6 +67,6 @@ that range.
 ## Current verification boundary
 
 CI builds and parses bundle contracts and writes synthetic inactive-slot images.
-It does not reboot a ZCU102. U-Boot environment persistence, bootcount rollback,
-power loss, actual block-device aliases, FPGA build-ID health, and remoteproc
-startup remain pending hardware.
+It does not reboot a MYD-CZU5EV-V2. U-Boot environment persistence, bootcount
+rollback, power loss, actual eMMC/NVMe aliases, PCIe link training, FPGA
+build-ID health, and remoteproc startup remain pending hardware.

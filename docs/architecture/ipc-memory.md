@@ -11,8 +11,10 @@
 | PL event ring | `0x3ef00000` | 1 MiB | PL producer/R5 consumer | noncoherent shared |
 | PL registers | `0xa0000000` | 64 KiB | PL with PS access | device |
 
-The device-tree source is the executable contract. Addresses must be compared
-with the generated XSA/SDT before board use.
+The MYD device-tree fragment exposes the register span as `generic-uio` and
+binds the PL ring reserved memory. It is still a provisional executable
+contract: addresses and the future PL interrupt must be compared with the
+generated XSA/SDT before board use.
 
 ## Record layout
 

@@ -1,14 +1,17 @@
-# ZCU102 HFT reference design
+# MYD-CZU5EV-V2 HFT reference design
 
-An educational end-to-end trading reference for the AMD Zynq UltraScale+
-MPSoC ZCU102:
+An educational end-to-end trading reference for the MYIR
+MYD-CZU5EV-V2 with an AMD XCZU5EV-2SFVC784 MPSoC:
 
-- VHDL-2008 market-data pipeline for MoldUDP64 and an ITCH 5.0 subset.
+- VHDL-2008 10G Ethernet/IPv4/UDP market-data ingress for MoldUDP64 and an
+  ITCH 5.0 subset, plus a dedicated SFP+ telemetry egress.
 - FreeRTOS/C++23 cooperative execution and risk control on Cortex-R5.
 - Rust async SoupBinTCP/OUCH gateway, observability, and PostgreSQL analytics on
   Cortex-A53 Yocto Linux.
 - Shared generated contracts, deterministic simulators, per-layer tests and
   coverage, signed SWUpdate A/B artifacts, and reproducible CI environments.
+- A/B boot/rootfs slots on the 4 GB eMMC and persistent PostgreSQL/analytics
+  data on an explicitly provisioned PCIe NVMe SSD.
 
 The project is fail-closed and simulator-only by default. It is not a
 production trading system and no workflow deploys to hardware.
@@ -32,9 +35,21 @@ Vivado is invoked only through the checked-in batch wrapper and is expected at
 .\scripts\windows\build-fpga.ps1 -Profile sim-dma
 ```
 
-GitHub Actions performs open-source FPGA simulation, R5 host tests and
+GitHub Actions performs open-source programmable-logic simulation, R5 host tests and
 cross-compilation, and A53 Rust tests/cross-compilation. Vivado synthesis stays
 local because no Windows self-hosted runner was selected.
+
+## Source layout
+
+- `zynq/ultrascale+`: MYD board data, VHDL RTL/tests, constraints, and Vivado Tcl.
+- `cortex/r5`: cooperative FreeRTOS/C++23 firmware.
+- `cortex/a53`: Rust Linux services and protocol adapters.
+- `yocto`: MYD machine, A/B image, OpenAMP, NVMe, and SWUpdate integration.
+
+The checked-in MYIR board data is deliberately part-level. Public pinouts
+identify the ZU5EV and Bank 224 GTH balls, but not verified DDR timing, a full
+PS preset, or physical SFP cage ordering. Bitstream/XSA generation therefore
+fails closed until vendor data or hardware validation fills those gaps.
 
 ## Generate contracts
 

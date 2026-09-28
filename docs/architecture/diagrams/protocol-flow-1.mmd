@@ -1,11 +1,14 @@
 sequenceDiagram
     participant Sim as ITCH simulator
+    participant UDP as Ethernet IPv4 UDP validator
     participant Mold as MoldUDP64 decoder
     participant Itch as ITCH decoder
     participant Book as Bounded PL book
     participant Ring as PL-to-R5 ring
     participant Exec as R5 executor
-    Sim->>Mold: UDP payload
+    Sim->>UDP: 10G Ethernet frame
+    UDP->>UDP: Check MAC, IPv4 checksum, fragment, lengths, IP, port
+    UDP->>Mold: Validated UDP payload
     Mold->>Mold: Check session, sequence, count, lengths
     alt sequence gap or malformed payload
         Mold-->>Exec: Stale/fault notification

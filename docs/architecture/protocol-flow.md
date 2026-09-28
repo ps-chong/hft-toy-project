@@ -5,20 +5,24 @@
 Files under `protocol/schema` are JSON-compatible YAML. The generator hashes all
 schemas and emits VHDL constants, C++ constants/readers, Rust constants, the PL
 register table, and binary vectors. CI regenerates into memory and fails on
-drift. All multi-byte venue fields are big-endian; the internal 64-byte IPC
-records are little-endian because both PS processors are configured that way.
+drift. All multi-byte venue and UDP telemetry fields are big-endian; the
+internal 64-byte IPC records are little-endian because both PS processors are
+configured that way.
 
 ## Market-data sequence
 
 ```mermaid
 sequenceDiagram
     participant Sim as ITCH simulator
+    participant UDP as Ethernet IPv4 UDP validator
     participant Mold as MoldUDP64 decoder
     participant Itch as ITCH decoder
     participant Book as Bounded PL book
     participant Ring as PL-to-R5 ring
     participant Exec as R5 executor
-    Sim->>Mold: UDP payload
+    Sim->>UDP: 10G Ethernet frame
+    UDP->>UDP: Check MAC, IPv4 checksum, fragment, lengths, IP, port
+    UDP->>Mold: Validated UDP payload
     Mold->>Mold: Check session, sequence, count, lengths
     alt sequence gap or malformed payload
         Mold-->>Exec: Stale/fault notification

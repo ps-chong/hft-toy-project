@@ -6,9 +6,9 @@ Two domains are always reported separately:
 - `intent_to_ack_ns`: A53 RPMsg receipt to simulated exchange acknowledgement.
 
 Report count, minimum, p50, p99, p99.9, and maximum. Do not average the domains
-or label host measurements as ZCU102 values. Capture queue depth, drops, CPU
-load, logging level, database state, feed rate, compiler/build ID, and clock
-configuration alongside every run.
+or label host measurements as MYD-CZU5EV-V2 values. Capture queue depth, drops,
+CPU load, logging level, NVMe/database state, SFP link state, feed rate,
+compiler/build ID, and clock configuration alongside every run.
 
 Use `hft-latency-report samples.jsonl --output artifacts/latency` for host
 samples. Hardware measurement should use the PL counter at ingress and another

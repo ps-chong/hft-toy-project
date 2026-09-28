@@ -5,7 +5,7 @@ risk rules map directly to deterministic RTL and do not benefit from neural
 inference. A DPU would consume PL resources, add Vitis AI runtime/version
 coupling, and introduce latency variance.
 
-The ZCU102 Mali-400 is intended for graphics/OpenGL ES. It is not a suitable
+The MYD-CZU5EV-V2 Mali-400 is intended for graphics/OpenGL ES. It is not a suitable
 general-purpose compute target for the trading path. It may render a future
 local visualization, but the current Textual dashboard works over a serial or
 SSH terminal.

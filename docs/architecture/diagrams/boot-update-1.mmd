@@ -14,4 +14,5 @@ sequenceDiagram
     UBoot->>Linux: Kernel, DTB, rootfs
     Linux->>R5: remoteproc loads hft-r5.elf
     R5-->>Linux: RPMsg endpoint appears
+    Linux->>Linux: Mount labelled NVMe data and prepare ownership
     Linux->>Linux: Start hftd, PostgreSQL, health confirmation

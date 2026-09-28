@@ -6,7 +6,7 @@ Use the checked-in containers for reproducibility. A native Ubuntu 24.04 setup
 needs CMake/Ninja, Clang 18, GCC 14+, Python 3.12, GHDL, Rust 1.97.1, and the
 cross compilers. The root README contains the shortest commands.
 
-## FPGA simulation
+## Programmable-logic simulation
 
 ```bash
 python3 -m venv .venv
@@ -60,7 +60,23 @@ completing the deferred hardware checks.
 Set-Location C:\Users\121679\hft-toy-project
 .\scripts\windows\verify-tools.ps1
 .\scripts\windows\build-fpga.ps1 -Profile sim-dma
+.\scripts\windows\build-fpga.ps1 -Profile sfp10g
 ```
 
-The current goal is out-of-context synthesis; board bitstream integration is
-intentionally rejected until hardware is available.
+Both profiles target `xczu5ev-sfvc784-2-e`; `sfp10g` additionally checks for
+the AMD Ethernet subsystem. The repo-local MYIR board repository is registered
+by Tcl. The current goal is out-of-context synthesis; bitstream/XSA generation
+is intentionally rejected until DDR/PS and physical SFP mapping are validated.
+
+## Target NVMe provisioning
+
+After a verified image boots, persistent storage remains an explicit operator
+action:
+
+```console
+hft-provision-nvme /dev/nvme0n1 --yes
+systemctl start data.mount hft-data-prepare.service
+```
+
+This erases the selected NVMe device. It is never called from image install,
+boot, or SWUpdate.

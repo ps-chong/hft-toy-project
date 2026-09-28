@@ -10,13 +10,15 @@ tick-to-intent latency boundary.
 
 ```mermaid
 flowchart LR
-    Feed["MoldUDP64 and ITCH feed"] --> Mac["10G MAC or DMA replay"]
-    Mac --> PL["VHDL validation, sequencing, book, signal"]
+    Feed["MoldUDP64 and ITCH UDP feed"] --> Rx["SFP+ lane 0 and 10G MAC"]
+    Rx --> PL["IPv4 UDP validation, sequencing, book, signal"]
+    PL --> Tx["SFP+ lane 1 UDP telemetry"]
     PL -->|Normalized event ring| R5["FreeRTOS cooperative executor"]
     R5 -->|Approved intent over RPMsg| A53["Rust hftd actors"]
     A53 -->|SoupBinTCP and OUCH| Exchange["Exchange simulator"]
     A53 --> Journal["journald"]
-    A53 --> Postgres["PostgreSQL"]
+    Nvme["PCIe NVMe hft_data"] --> Postgres["PostgreSQL"]
+    A53 --> Postgres
     A53 --> Api["CLI and local API"]
 ```
 
@@ -28,6 +30,9 @@ flowchart LR
   intent with bounded cooperative handlers and no blocking lock.
 - **A53:** own network sessions, remoteproc/RPMsg lifecycle, observability,
   persistence, update orchestration, and operator interfaces.
+- **MYD storage:** boot and read-only A/B roots remain on eMMC; a manually
+  provisioned GPT partition labelled `hft_data` supplies `/data` over PCIe
+  Gen2 x1 NVMe.
 - **PostgreSQL/UI/logging:** consume bounded copies and never backpressure the
   trading path.
 
@@ -48,6 +53,6 @@ counted and skipped.
 ## Verification status
 
 Open-source simulation and host models verify contracts and state transitions.
-Vivado synthesis is a local Windows operation. Actual transceiver, cache,
-interrupt, remoteproc, boot, SWUpdate rollback, and latency behavior is deferred
-until a board is available.
+Vivado synthesis is a local Windows operation. Actual SFP cage ordering,
+MAC/PCS/GTH reset, cache, interrupt, remoteproc, PCIe, boot, SWUpdate rollback,
+and latency behavior is deferred until a board is available.
