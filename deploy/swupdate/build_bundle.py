@@ -116,7 +116,7 @@ def main() -> int:
         )
     entries.extend(
         (
-            Entry("hft-image-hft-zcu102.ext4.gz", args.rootfs.read_bytes()),
+            Entry("hft-image-hft-myd-czu5ev-v2.ext4.gz", args.rootfs.read_bytes()),
             Entry("boot-a.vfat", args.boot.read_bytes()),
             Entry("boot-b.vfat", args.boot.read_bytes()),
         )

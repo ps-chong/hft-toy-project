@@ -1,18 +1,19 @@
 # Yocto image
 
-The `kas/zcu102.yml` manifest pins Scarthgap/AMD 2026.1 layers and adds this
-directory as `meta-hft`.
+The `kas/myd-czu5ev-v2.yml` manifest pins Scarthgap/AMD 2026.1 layers and adds
+this directory as `meta-hft`.
 
 ```bash
-kas checkout yocto/kas/zcu102.yml
-kas shell yocto/kas/zcu102.yml -c 'bitbake-layers show-layers'
-kas build yocto/kas/zcu102.yml
+kas checkout yocto/kas/myd-czu5ev-v2.yml
+kas shell yocto/kas/myd-czu5ev-v2.yml -c 'bitbake-layers show-layers'
+kas build yocto/kas/myd-czu5ev-v2.yml
 ```
 
 The intended output is an A/B WIC image, SPDX manifest, R5 firmware package,
 and SWUpdate bundle. Full image construction requires substantial disk space
-and the AMD SDT artifacts. It does not invoke Vivado and never deploys to a
-board.
+and a verified MYIR PS/DDR preset exported as AMD SDT artifacts. The generic
+machine is intentionally non-deployable until those artifacts are supplied.
+The build does not invoke Vivado and never deploys to a board.
 
 `HFT_SRCREV` must be set to an immutable commit in release builds. The default
 `AUTOREV` exists only so a developer can build the current `develop` branch.

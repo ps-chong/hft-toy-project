@@ -1,5 +1,5 @@
 [Unit]
-Description=ZCU102 HFT control and OUCH gateway
+Description=MYD-CZU5EV-V2 HFT control and OUCH gateway
 After=network-online.target postgresql.service hft-remoteproc.service
 Wants=network-online.target postgresql.service
 Requires=hft-remoteproc.service

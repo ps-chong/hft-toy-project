@@ -48,7 +48,7 @@ cargo build --workspace --release --target aarch64-unknown-linux-gnu
 ```bash
 docker build -t hft-yocto -f containers/yocto/Dockerfile .
 docker run --rm -v "$PWD:/workspace" hft-yocto \
-  kas shell yocto/kas/zcu102.yml -c 'bitbake-layers show-layers'
+  kas shell yocto/kas/myd-czu5ev-v2.yml -c 'bitbake-layers show-layers'
 ```
 
 Full `kas build` creates image artifacts only. Do not flash them without

@@ -1,4 +1,4 @@
-SUMMARY = "ZCU102 HFT A/B demonstration image"
+SUMMARY = "MYD-CZU5EV-V2 HFT A/B demonstration image"
 LICENSE = "MIT"
 
 inherit core-image

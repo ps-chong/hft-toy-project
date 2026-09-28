@@ -19,7 +19,7 @@ jobs:
           path: |
             yocto/downloads
             yocto/sstate-cache
-          key: yocto-scarthgap-${{ hashFiles('yocto/kas/zcu102.yml', 'yocto/**/*.bb*') }}
+          key: yocto-scarthgap-${{ hashFiles('yocto/kas/myd-czu5ev-v2.yml', 'yocto/**/*.bb*') }}
           restore-keys: yocto-scarthgap-
       - name: Build Yocto container
         run: docker build -t hft-yocto -f containers/yocto/Dockerfile .
@@ -28,20 +28,20 @@ jobs:
           docker run --rm \
             -v "$PWD:/workspace" \
             hft-yocto \
-            kas shell yocto/kas/zcu102.yml \
+            kas shell yocto/kas/myd-czu5ev-v2.yml \
               -c 'bitbake-layers show-layers && bitbake -p hft-image'
       - name: Build image, SPDX, and SWUpdate artifacts
         run: |
           docker run --rm \
             -v "$PWD:/workspace" \
             hft-yocto \
-            kas build yocto/kas/zcu102.yml
+            kas build yocto/kas/myd-czu5ev-v2.yml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: zcu102-yocto-artifacts
+          name: myd-czu5ev-v2-yocto-artifacts
           path: |
-            yocto/build/tmp/deploy/images/hft-zcu102/*.wic*
-            yocto/build/tmp/deploy/images/hft-zcu102/*.swu
+            yocto/build/tmp/deploy/images/hft-myd-czu5ev-v2/*.wic*
+            yocto/build/tmp/deploy/images/hft-myd-czu5ev-v2/*.swu
             yocto/build/tmp/deploy/spdx/
           if-no-files-found: warn

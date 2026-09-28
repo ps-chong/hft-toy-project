@@ -1,14 +1,14 @@
 software =
 {
     version = "0.1.0";
-    description = "ZCU102 HFT reference image";
-    hardware-compatibility: [ "hft-zcu102:1.0" ];
+    description = "MYD-CZU5EV-V2 HFT reference image";
+    hardware-compatibility: [ "hft-myd-czu5ev-v2:1.0" ];
 
     rootfs_a =
     {
         images: (
             {
-                filename = "hft-image-hft-zcu102.ext4.gz";
+                filename = "hft-image-hft-myd-czu5ev-v2.ext4.gz";
                 type = "raw";
                 compressed = "zlib";
                 device = "/dev/disk/by-partlabel/rootfs_a";
@@ -35,7 +35,7 @@ software =
     {
         images: (
             {
-                filename = "hft-image-hft-zcu102.ext4.gz";
+                filename = "hft-image-hft-myd-czu5ev-v2.ext4.gz";
                 type = "raw";
                 compressed = "zlib";
                 device = "/dev/disk/by-partlabel/rootfs_b";

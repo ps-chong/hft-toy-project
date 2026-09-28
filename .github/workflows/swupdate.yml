@@ -35,7 +35,7 @@ jobs:
       - name: Build and verify a signed contract bundle
         run: |
           mkdir -p artifacts
-          printf 'rootfs-contract\n' | gzip -n > artifacts/hft-image-hft-zcu102.ext4.gz
+          printf 'rootfs-contract\n' | gzip -n > artifacts/hft-image-hft-myd-czu5ev-v2.ext4.gz
           printf 'boot-contract\n' > artifacts/boot.vfat
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
             -subj '/CN=hft-ci-contract/' \
@@ -43,7 +43,7 @@ jobs:
             -out "$RUNNER_TEMP/cert.pem"
           python deploy/swupdate/build_bundle.py \
             --description deploy/swupdate/sw-description \
-            --rootfs artifacts/hft-image-hft-zcu102.ext4.gz \
+            --rootfs artifacts/hft-image-hft-myd-czu5ev-v2.ext4.gz \
             --boot artifacts/boot.vfat \
             --key "$RUNNER_TEMP/key.pem" \
             --certificate "$RUNNER_TEMP/cert.pem" \

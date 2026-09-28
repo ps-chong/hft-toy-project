@@ -1,4 +1,4 @@
-SUMMARY = "ZCU102 HFT application package group"
+SUMMARY = "MYD-CZU5EV-V2 HFT application package group"
 LICENSE = "MIT"
 
 inherit packagegroup
