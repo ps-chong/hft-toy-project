@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<board schema_version="2.2"
+       vendor="myirtech.com"
+       name="myd_czu5ev_v2"
+       display_name="MYIR MYD-CZU5EV-V2"
+       url="https://www.myirtech.com/list.asp?id=713">
+  <compatible_board_revisions>
+    <revision id="0">V2</revision>
+  </compatible_board_revisions>
+  <file_version>1.0</file_version>
+  <description>
+    Part-level board definition for the MYD-CZU5EV-V2. The public MYIR
+    pinout defines PL pins only; no unverified ZynqMP PS preset is included.
+  </description>
+  <components>
+    <component name="part0"
+               display_name="XCZU5EV MPSoC"
+               type="fpga"
+               part_name="xczu5ev-sfvc784-2-e"
+               pin_map_file="part0_pins.xml"
+               vendor="xilinx"
+               spec_url="https://www.amd.com/en/products/adaptive-socs-and-fpgas/soc/zynq-ultrascale-plus-mpsoc.html">
+      <description>XCZU5EV-2SFVC784 MPSoC on the MYC-CZU5EV-V2 module</description>
+    </component>
+  </components>
+</board>
