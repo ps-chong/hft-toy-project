@@ -16,7 +16,7 @@ end entity tb_telemetry_udp_tx;
 
 architecture tb of tb_telemetry_udp_tx is
 
-  constant clk_period : time := 10 ns;
+  constant clk_period : time    := 10 ns;
   constant frame_size : natural := 106;
 
   type byte_array_t is array (0 to frame_size - 1) of std_logic_vector(7 downto 0);
@@ -33,10 +33,10 @@ architecture tb of tb_telemetry_udp_tx is
   signal axis_valid : std_logic;
   signal axis_last  : std_logic;
 
-  signal captured       : byte_array_t := (others => (others => '0'));
+  signal captured       : byte_array_t                  := (others => (others => '0'));
   signal captured_count : natural range 0 to frame_size := 0;
-  signal last_keep      : std_logic_vector(7 downto 0) := (others => '0');
-  signal frame_done     : std_logic := '0';
+  signal last_keep      : std_logic_vector(7 downto 0)  := (others => '0');
+  signal frame_done     : std_logic                     := '0';
 
 begin
 
@@ -72,12 +72,16 @@ begin
         frame_done     <= '0';
       elsif (axis_valid = '1') then
         count_i := captured_count;
+
         for lane in 0 to 7 loop
+
           if ((axis_keep(lane) = '1') and (count_i < frame_size)) then
             captured(count_i) <= axis_data((lane * 8) + 7 downto lane * 8);
             count_i           := count_i + 1;
           end if;
+
         end loop;
+
         captured_count <= count_i;
         if (axis_last = '1') then
           last_keep  <= axis_keep;
@@ -97,7 +101,7 @@ begin
       event_valid <= '0';
       wait for 3 * clk_period;
       wait until rising_edge(clk);
-      rst <= '0';
+      rst         <= '0';
 
     end procedure reset_dut;
 
@@ -106,6 +110,7 @@ begin
     test_runner_setup(runner, runner_cfg);
 
     while test_suite loop
+
       if run("serializes normalized event as UDP telemetry") then
         reset_dut;
         event_data.kind            <= EVENT_ADD;
@@ -118,7 +123,7 @@ begin
         event_data.quantity        <= to_unsigned(100, 32);
         event_valid                <= '1';
         wait until rising_edge(clk) and event_ready = '1';
-        event_valid <= '0';
+        event_valid                <= '0';
         wait until frame_done = '1';
         wait until rising_edge(clk);
 
@@ -140,6 +145,7 @@ begin
         check_equal(captured(97), std_logic_vector'(x"03"));
         check_equal(last_keep, std_logic_vector'(x"03"));
       end if;
+
     end loop;
 
     test_runner_cleanup(runner);

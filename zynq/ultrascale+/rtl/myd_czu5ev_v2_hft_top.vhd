@@ -7,12 +7,12 @@ library work;
 
 entity myd_czu5ev_v2_hft_top is
   generic (
-    local_mac             : std_logic_vector(47 downto 0) := x"020000000001";
-    local_ip              : std_logic_vector(31 downto 0) := x"C0A80164";
-    market_data_port      : natural range 0 to 65535      := 47000;
-    telemetry_mac         : std_logic_vector(47 downto 0) := x"020000000002";
-    telemetry_ip          : std_logic_vector(31 downto 0) := x"C0A80165";
-    telemetry_port        : natural range 0 to 65535      := 47001
+    local_mac        : std_logic_vector(47 downto 0) := x"020000000001";
+    local_ip         : std_logic_vector(31 downto 0) := x"C0A80164";
+    market_data_port : natural range 0 to 65535      := 47000;
+    telemetry_mac    : std_logic_vector(47 downto 0) := x"020000000002";
+    telemetry_ip     : std_logic_vector(31 downto 0) := x"C0A80165";
+    telemetry_port   : natural range 0 to 65535      := 47001
   );
   port (
     axis_clk : in    std_logic;
@@ -91,12 +91,12 @@ architecture rtl of myd_czu5ev_v2_hft_top is
   signal signal_qty_i        : unsigned(31 downto 0);
   signal expected_sequence_i : unsigned(63 downto 0);
 
-  signal pipeline_killed_i   : std_logic;
-  signal pipeline_gap_i      : std_logic;
+  signal pipeline_killed_i    : std_logic;
+  signal pipeline_gap_i       : std_logic;
   signal pipeline_malformed_i : std_logic;
-  signal pipeline_unknown_i  : std_logic;
-  signal pipeline_overflow_i : std_logic;
-  signal pipeline_rejected_i : std_logic;
+  signal pipeline_unknown_i   : std_logic;
+  signal pipeline_overflow_i  : std_logic;
+  signal pipeline_rejected_i  : std_logic;
 
   signal udp_dropped_i   : unsigned(31 downto 0);
   signal udp_drop_i      : std_logic;
@@ -133,14 +133,14 @@ begin
   status_overflow  <= pipeline_overflow_i;
   status_rejected  <= pipeline_rejected_i;
 
-  status_flags_i(0)          <= pipeline_killed_i;
-  status_flags_i(1)          <= pipeline_gap_i;
-  status_flags_i(2)          <= pipeline_malformed_i or udp_malformed_i;
-  status_flags_i(3)          <= pipeline_unknown_i;
-  status_flags_i(4)          <= pipeline_overflow_i;
-  status_flags_i(5)          <= pipeline_rejected_i;
-  status_flags_i(6)          <= udp_drop_i;
-  status_flags_i(7)          <= not sfp_tx_link_up;
+  status_flags_i(0) <= pipeline_killed_i;
+  status_flags_i(1) <= pipeline_gap_i;
+  status_flags_i(2) <= pipeline_malformed_i or udp_malformed_i;
+  status_flags_i(3) <= pipeline_unknown_i;
+  status_flags_i(4) <= pipeline_overflow_i;
+  status_flags_i(5) <= pipeline_rejected_i;
+  status_flags_i(6) <= udp_drop_i;
+  status_flags_i(7) <= not sfp_tx_link_up;
 
   unpack_mac_stream : entity work.axis64_to_byte
     port map (
@@ -248,7 +248,7 @@ begin
         network_fault_i <= '0';
       elsif ((udp_malformed_i = '1') or
              ((s_rx_axis_tvalid = '1') and (s_rx_axis_tready = '1') and
-              (s_rx_axis_tlast = '1') and (s_rx_axis_tuser = '1'))) then
+               (s_rx_axis_tlast = '1') and (s_rx_axis_tuser = '1'))) then
         network_fault_i <= '1';
       end if;
     end if;

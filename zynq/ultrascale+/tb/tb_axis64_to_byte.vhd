@@ -5,6 +5,8 @@ library ieee;
 library vunit_lib;
   context vunit_lib.vunit_context;
 
+library hft;
+
 entity tb_axis64_to_byte is
   generic (
     runner_cfg : string
@@ -29,9 +31,9 @@ architecture tb of tb_axis64_to_byte is
   signal byte_sop   : std_logic;
   signal byte_eop   : std_logic;
 
-  signal received_count : natural := 0;
-  signal sop_count      : natural := 0;
-  signal eop_count      : natural := 0;
+  signal received_count : natural                      := 0;
+  signal sop_count      : natural                      := 0;
+  signal eop_count      : natural                      := 0;
   signal first_byte     : std_logic_vector(7 downto 0) := (others => '0');
   signal last_byte      : std_logic_vector(7 downto 0) := (others => '0');
 
@@ -91,7 +93,7 @@ begin
       s_valid <= '0';
       wait for 3 * clk_period;
       wait until rising_edge(clk);
-      rst <= '0';
+      rst     <= '0';
 
     end procedure reset_dut;
 
@@ -106,10 +108,14 @@ begin
       s_keep  <= keep;
       s_last  <= last;
       s_valid <= '1';
+
       loop
+
         wait until rising_edge(clk);
         exit when s_ready = '1';
+
       end loop;
+
       s_valid <= '0';
 
     end procedure send_word;
@@ -119,6 +125,7 @@ begin
     test_runner_setup(runner, runner_cfg);
 
     while test_suite loop
+
       if run("unpacks full and partial AXI words") then
         reset_dut;
         send_word(x"0807060504030201", x"FF", '0');
@@ -130,6 +137,7 @@ begin
         check_equal(first_byte, std_logic_vector'(x"01"));
         check_equal(last_byte, std_logic_vector'(x"0A"));
       end if;
+
     end loop;
 
     test_runner_cleanup(runner);
