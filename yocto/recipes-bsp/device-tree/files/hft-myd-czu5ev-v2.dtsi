@@ -52,3 +52,14 @@
     mbox-names = "tx", "rx";
     status = "okay";
 };
+
+/*
+ * MYIR routes PS-GTR lane 0 and the 100 MHz reference clock to PCIe.
+ * PERST# is PS_MIO31. The ZynqMP PS preset must configure those pins before
+ * this node is hardware-valid.
+ */
+&pcie {
+    num-lanes = <1>;
+    max-link-speed = <2>;
+    status = "okay";
+};

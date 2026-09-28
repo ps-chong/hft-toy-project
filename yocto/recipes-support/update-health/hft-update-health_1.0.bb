@@ -6,7 +6,14 @@ inherit systemd
 
 SRC_URI = "file://hft-update-health.service file://hft-update-health.sh"
 
-RDEPENDS:${PN} += "bash libubootenv-bin postgresql-client hftd"
+RDEPENDS:${PN} += " \
+    bash \
+    hftd \
+    libubootenv-bin \
+    postgresql-client \
+    util-linux-findmnt \
+    util-linux-mountpoint \
+"
 SYSTEMD_SERVICE:${PN} = "hft-update-health.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 

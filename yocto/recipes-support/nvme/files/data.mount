@@ -1,0 +1,14 @@
+[Unit]
+Description=Persistent HFT NVMe data volume
+After=systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Mount]
+What=/dev/disk/by-partlabel/hft_data
+Where=/data
+Type=ext4
+Options=noatime,nodiratime
+TimeoutSec=30
+
+[Install]
+WantedBy=local-fs.target

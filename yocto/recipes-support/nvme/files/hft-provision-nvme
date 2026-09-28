@@ -1,0 +1,55 @@
+#!/bin/sh
+set -eu
+
+usage() {
+    echo "usage: hft-provision-nvme /dev/nvmeXnY --yes" >&2
+    exit 2
+}
+
+[ "$#" -eq 2 ] || usage
+device="$1"
+[ "$2" = "--yes" ] || usage
+
+case "$device" in
+    /dev/nvme*n*)
+        ;;
+    *)
+        echo "refusing non-NVMe device '$device'" >&2
+        exit 1
+        ;;
+esac
+
+[ -b "$device" ] || {
+    echo "'$device' is not a block device" >&2
+    exit 1
+}
+
+transport="$(lsblk -dnro TRAN "$device")"
+[ "$transport" = "nvme" ] || {
+    echo "refusing '$device': transport is '$transport', not NVMe" >&2
+    exit 1
+}
+
+if lsblk -nrpo MOUNTPOINT "$device" | awk 'NF { mounted = 1 } END { exit !mounted }'; then
+    echo "refusing '$device': it or one of its partitions is mounted" >&2
+    exit 1
+fi
+
+echo "ERASING partition metadata on $device and creating hft_data" >&2
+wipefs --all "$device"
+sgdisk --zap-all "$device"
+parted --script "$device" mklabel gpt
+parted --script "$device" mkpart hft_data ext4 1MiB 100%
+parted --script "$device" name 1 hft_data
+partprobe "$device"
+udevadm settle
+
+partition="${device}p1"
+[ -b "$partition" ] || {
+    echo "partition '$partition' did not appear" >&2
+    exit 1
+}
+
+mkfs.ext4 -F -L hft_data "$partition"
+echo "created $partition with GPT label and filesystem label hft_data" >&2
+echo "start data.mount or reboot to mount it at /data" >&2

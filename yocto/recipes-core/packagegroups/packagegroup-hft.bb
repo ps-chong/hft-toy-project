@@ -8,9 +8,11 @@ RDEPENDS:${PN} = " \
     hftctl \
     hft-r5-firmware \
     hft-remoteproc \
+    hft-nvme-data \
     hft-update-health \
     libmetal \
     open-amp \
+    nvme-cli \
     python3-core \
     python3-json \
     systemd-analyze \

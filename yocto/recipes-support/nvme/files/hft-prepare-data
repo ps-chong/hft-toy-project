@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+mountpoint -q /data
+install -d -m 0750 -o postgres -g postgres /data/postgresql
+install -d -m 0750 -o hft -g hft /data/hft
