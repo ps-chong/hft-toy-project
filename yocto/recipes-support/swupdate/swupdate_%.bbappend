@@ -1,9 +1,9 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI:append:hft-zcu102 = " file://hft-swupdate.cfg file://swupdate.cfg"
+SRC_URI:append:hft-myd-czu5ev-v2 = " file://hft-swupdate.cfg file://swupdate.cfg"
 
-PACKAGECONFIG:append:hft-zcu102 = " uboot lua mongoose"
+PACKAGECONFIG:append:hft-myd-czu5ev-v2 = " uboot lua mongoose"
 
-do_install:append:hft-zcu102() {
+do_install:append:hft-myd-czu5ev-v2() {
     install -d ${D}${sysconfdir}
     install -m 0644 ${WORKDIR}/swupdate.cfg ${D}${sysconfdir}/swupdate.cfg
     install -d ${D}${sysconfdir}/swupdate

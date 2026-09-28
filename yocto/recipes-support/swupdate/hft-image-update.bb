@@ -1,4 +1,4 @@
-SUMMARY = "SWUpdate bundle for the ZCU102 HFT A/B image"
+SUMMARY = "SWUpdate bundle for the MYD-CZU5EV-V2 HFT A/B image"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 

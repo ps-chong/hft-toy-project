@@ -1,4 +1,11 @@
 / {
+    hft_pl: hft-pl@a0000000 {
+        compatible = "generic-uio";
+        reg = <0x0 0xa0000000 0x0 0x00010000>;
+        memory-region = <&hft_pl_ring>;
+        status = "okay";
+    };
+
     reserved-memory {
         #address-cells = <2>;
         #size-cells = <2>;

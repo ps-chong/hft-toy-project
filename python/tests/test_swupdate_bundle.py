@@ -56,7 +56,7 @@ def test_builds_deterministic_unsigned_bundle(tmp_path: Path) -> None:
     entries = read_newc(output.read_bytes())
     assert list(entries) == [
         "sw-description",
-        "hft-image-hft-zcu102.ext4.gz",
+        "hft-image-hft-myd-czu5ev-v2.ext4.gz",
         "boot-a.vfat",
         "boot-b.vfat",
     ]

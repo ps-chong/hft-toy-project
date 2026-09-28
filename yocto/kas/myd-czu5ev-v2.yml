@@ -1,7 +1,7 @@
 header:
   version: 14
 
-machine: hft-zcu102
+machine: hft-myd-czu5ev-v2
 distro: poky
 target:
   - hft-image
