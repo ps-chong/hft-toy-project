@@ -11,8 +11,9 @@ cross compilers. The root README contains the shortest commands.
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -e 'python[dev]'
-VUNIT_SIMULATOR=ghdl .venv/bin/python fpga/sim/run.py
-.venv/bin/vsg -c fpga/vsg.yaml -f fpga/rtl/*.vhd fpga/tb/*.vhd
+VUNIT_SIMULATOR=ghdl .venv/bin/python 'zynq/ultrascale+/sim/run.py'
+.venv/bin/vsg -c 'zynq/ultrascale+/vsg.yaml' \
+  -f 'zynq/ultrascale+/rtl/'*.vhd 'zynq/ultrascale+/tb/'*.vhd
 ```
 
 Set `VUNIT_SIMULATOR=nvc HFT_VHDL_COVERAGE=1` for NVC coverage. CI installs

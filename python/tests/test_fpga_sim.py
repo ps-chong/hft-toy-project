@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def load_run_module():
     spec = importlib.util.spec_from_file_location(
-        "hft_fpga_sim_run", ROOT / "fpga" / "sim" / "run.py"
+        "hft_fpga_sim_run", ROOT / "zynq" / "ultrascale+" / "sim" / "run.py"
     )
     assert spec is not None
     assert spec.loader is not None

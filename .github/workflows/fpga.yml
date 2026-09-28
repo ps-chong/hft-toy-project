@@ -29,11 +29,11 @@ jobs:
       - name: Verify generated contracts
         run: python protocol/generator/generate.py --check
       - name: Lint synthesizable VHDL and tests
-        run: vsg -c fpga/vsg.yaml -f fpga/rtl/*.vhd fpga/tb/*.vhd
+        run: vsg -c 'zynq/ultrascale+/vsg.yaml' -f 'zynq/ultrascale+/rtl/'*.vhd 'zynq/ultrascale+/tb/'*.vhd
       - name: Run VUnit suite with GHDL
         env:
           VUNIT_SIMULATOR: ghdl
-        run: python fpga/sim/run.py -x fpga-junit.xml
+        run: python 'zynq/ultrascale+/sim/run.py' -x fpga-junit.xml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -65,7 +65,7 @@ jobs:
         env:
           VUNIT_SIMULATOR: nvc
           HFT_VHDL_COVERAGE: "1"
-        run: python fpga/sim/run.py -x fpga-nvc-junit.xml
+        run: python 'zynq/ultrascale+/sim/run.py' -x fpga-nvc-junit.xml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

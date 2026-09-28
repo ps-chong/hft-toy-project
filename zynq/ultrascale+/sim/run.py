@@ -5,7 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 COVER_SPEC = "branch,statement,functional"
 ENABLE_COVERAGE = os.environ.get("HFT_VHDL_COVERAGE", "0") == "1"
 
@@ -86,8 +86,8 @@ def configure_suite():
         "hft_pipeline.vhd",
         "zcu102_hft_top.vhd",
     ):
-        lib.add_source_file(ROOT / "fpga/rtl" / source)
-    lib.add_source_files(ROOT / "fpga/tb" / "tb_*.vhd")
+        lib.add_source_file(ROOT / "zynq/ultrascale+/rtl" / source)
+    lib.add_source_files(ROOT / "zynq/ultrascale+/tb" / "tb_*.vhd")
 
     if ENABLE_COVERAGE:
         # NVC accepts --cover only on elaborate, not analyse.
