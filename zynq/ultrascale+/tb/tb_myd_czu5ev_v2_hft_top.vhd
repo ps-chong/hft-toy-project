@@ -101,6 +101,7 @@ begin
         check_equal(killed, '0');
 
         rx_link_up <= '0';
+        wait until rising_edge(clk);
         wait for 1 ns;
         check_equal(killed, '1');
 
