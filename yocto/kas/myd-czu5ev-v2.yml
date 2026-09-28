@@ -10,7 +10,7 @@ target:
 repos:
   poky:
     url: https://github.com/Xilinx/poky.git
-    commit: e61bfec33b0a4603f290ca4dabbfea121cfe9c91
+    commit: 1d54d1c4736a114e1cecbe85a0306e3814d5ce70
     layers:
       meta:
       meta-poky:
