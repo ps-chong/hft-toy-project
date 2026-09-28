@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare persistent HFT data directories
+Requires=data.mount
+After=data.mount
+Before=postgresql.service hftd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/hft-prepare-data
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,15 +1,13 @@
-# short-description: ZCU102 HFT redundant A/B image
-# long-description: Two boot/rootfs slots plus persistent PostgreSQL/update data.
+# short-description: MYD-CZU5EV-V2 HFT redundant A/B eMMC image
+# long-description: Two 128 MiB boot and two 1536 MiB rootfs slots. Persistent data lives on NVMe.
 
 part /boot --source bootimg-partition --ondisk mmcblk0 --fstype=vfat \
-  --label boot_a --active --align 4096 --size 256
+  --label boot_a --active --align 4096 --size 128
 part --source bootimg-partition --ondisk mmcblk0 --fstype=vfat \
-  --label boot_b --align 4096 --size 256
+  --label boot_b --align 4096 --size 128
 part / --source rootfs --ondisk mmcblk0 --fstype=ext4 \
-  --label rootfs_a --align 4096 --size 2048
+  --label rootfs_a --align 4096 --size 1536
 part --source rootfs --ondisk mmcblk0 --fstype=ext4 \
-  --label rootfs_b --align 4096 --size 2048
-part /data --ondisk mmcblk0 --fstype=ext4 \
-  --label hft_data --align 4096 --size 4096
+  --label rootfs_b --align 4096 --size 1536
 
 bootloader --ptable gpt

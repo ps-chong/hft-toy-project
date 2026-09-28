@@ -1,8 +1,9 @@
 [Unit]
 Description=MYD-CZU5EV-V2 HFT control and OUCH gateway
-After=network-online.target postgresql.service hft-remoteproc.service
+After=network-online.target postgresql.service hft-remoteproc.service hft-data-prepare.service
 Wants=network-online.target postgresql.service
-Requires=hft-remoteproc.service
+Requires=hft-remoteproc.service hft-data-prepare.service
+RequiresMountsFor=/data
 ConditionPathExists=/dev/rpmsg0
 
 [Service]

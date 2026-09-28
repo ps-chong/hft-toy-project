@@ -6,7 +6,9 @@ upgrade_available="$(fw_printenv -n upgrade_available 2>/dev/null || printf '0')
 
 deadline=$((SECONDS + 45))
 while [ "$SECONDS" -lt "$deadline" ]; do
-    if [ -e /dev/rpmsg0 ] &&
+    if mountpoint -q /data &&
+       [ "$(findmnt -n -o PARTLABEL /data 2>/dev/null || true)" = "hft_data" ] &&
+       [ -e /dev/rpmsg0 ] &&
        systemctl is-active --quiet hftd.service &&
        pg_isready --quiet &&
        hftctl status >/dev/null 2>&1; then
