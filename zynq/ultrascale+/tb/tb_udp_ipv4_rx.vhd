@@ -5,6 +5,8 @@ library ieee;
 library vunit_lib;
   context vunit_lib.vunit_context;
 
+library hft;
+
 entity tb_udp_ipv4_rx is
   generic (
     runner_cfg : string
@@ -19,21 +21,106 @@ architecture tb of tb_udp_ipv4_rx is
 
   constant udp_mold_add : byte_array_t :=
   (
-    x"02", x"00", x"00", x"00", x"00", x"01",
-    x"02", x"00", x"00", x"00", x"00", x"02",
-    x"08", x"00",
-    x"45", x"00", x"00", x"56", x"00", x"00", x"40", x"00",
-    x"40", x"11", x"B6", x"E1", x"C0", x"A8", x"01", x"01",
-    x"C0", x"A8", x"01", x"64",
-    x"30", x"39", x"B7", x"98", x"00", x"42", x"00", x"00",
-    x"54", x"45", x"53", x"54", x"53", x"45", x"53", x"53",
-    x"30", x"31", x"00", x"00", x"00", x"00", x"00", x"00",
-    x"00", x"01", x"00", x"01", x"00", x"24", x"41", x"00",
-    x"01", x"00", x"02", x"00", x"00", x"00", x"01", x"E2",
-    x"40", x"01", x"02", x"03", x"04", x"05", x"06", x"07",
-    x"08", x"42", x"00", x"00", x"00", x"64", x"41", x"43",
-    x"4D", x"45", x"20", x"20", x"20", x"20", x"00", x"12",
-    x"D6", x"44"
+    x"02",
+    x"00",
+    x"00",
+    x"00",
+    x"00",
+    x"01",
+    x"02",
+    x"00",
+    x"00",
+    x"00",
+    x"00",
+    x"02",
+    x"08",
+    x"00",
+    x"45",
+    x"00",
+    x"00",
+    x"56",
+    x"00",
+    x"00",
+    x"40",
+    x"00",
+    x"40",
+    x"11",
+    x"B6",
+    x"E1",
+    x"C0",
+    x"A8",
+    x"01",
+    x"01",
+    x"C0",
+    x"A8",
+    x"01",
+    x"64",
+    x"30",
+    x"39",
+    x"B7",
+    x"98",
+    x"00",
+    x"42",
+    x"00",
+    x"00",
+    x"54",
+    x"45",
+    x"53",
+    x"54",
+    x"53",
+    x"45",
+    x"53",
+    x"53",
+    x"30",
+    x"31",
+    x"00",
+    x"00",
+    x"00",
+    x"00",
+    x"00",
+    x"00",
+    x"00",
+    x"01",
+    x"00",
+    x"01",
+    x"00",
+    x"24",
+    x"41",
+    x"00",
+    x"01",
+    x"00",
+    x"02",
+    x"00",
+    x"00",
+    x"00",
+    x"01",
+    x"E2",
+    x"40",
+    x"01",
+    x"02",
+    x"03",
+    x"04",
+    x"05",
+    x"06",
+    x"07",
+    x"08",
+    x"42",
+    x"00",
+    x"00",
+    x"00",
+    x"64",
+    x"41",
+    x"43",
+    x"4D",
+    x"45",
+    x"20",
+    x"20",
+    x"20",
+    x"20",
+    x"00",
+    x"12",
+    x"D6",
+    x"44"
   );
 
   signal clk : std_logic := '0';
@@ -54,13 +141,13 @@ architecture tb of tb_udp_ipv4_rx is
   signal drop_pulse    : std_logic;
   signal malformed     : std_logic;
 
-  signal payload_count : natural := 0;
-  signal sop_count     : natural := 0;
-  signal eop_count     : natural := 0;
-  signal first_payload : std_logic_vector(7 downto 0) := (others => '0');
-  signal last_payload  : std_logic_vector(7 downto 0) := (others => '0');
-  signal drop_seen     : std_logic := '0';
-  signal malformed_seen : std_logic := '0';
+  signal payload_count  : natural                      := 0;
+  signal sop_count      : natural                      := 0;
+  signal eop_count      : natural                      := 0;
+  signal first_payload  : std_logic_vector(7 downto 0) := (others => '0');
+  signal last_payload   : std_logic_vector(7 downto 0) := (others => '0');
+  signal drop_seen      : std_logic                    := '0';
+  signal malformed_seen : std_logic                    := '0';
 
 begin
 
@@ -131,7 +218,7 @@ begin
       frame_valid <= '0';
       wait for 3 * clk_period;
       wait until rising_edge(clk);
-      rst <= '0';
+      rst         <= '0';
 
     end procedure reset_dut;
 
@@ -145,7 +232,9 @@ begin
     begin
 
       for index in udp_mold_add'range loop
+
         octet := udp_mold_add(index);
+
         if (corrupt_checksum and (index = 24)) then
           octet := x"B7";
         elsif (wrong_port and (index = 37)) then
@@ -154,21 +243,28 @@ begin
 
         frame_data  <= octet;
         frame_valid <= '1';
+
         if (index = udp_mold_add'low) then
           frame_sop <= '1';
         else
           frame_sop <= '0';
         end if;
+
         if (index = udp_mold_add'high) then
           frame_eop <= '1';
         else
           frame_eop <= '0';
         end if;
+
         loop
+
           wait until rising_edge(clk);
           exit when frame_ready = '1';
+
         end loop;
+
       end loop;
+
       frame_valid <= '0';
       frame_sop   <= '0';
       frame_eop   <= '0';
@@ -181,6 +277,7 @@ begin
     test_runner_setup(runner, runner_cfg);
 
     while test_suite loop
+
       if run("extracts validated MoldUDP64 payload") then
         reset_dut;
         send_frame;
@@ -204,6 +301,7 @@ begin
         check_equal(malformed_seen, '1');
         check_equal(dropped_count, to_unsigned(1, 32));
       end if;
+
     end loop;
 
     test_runner_cleanup(runner);

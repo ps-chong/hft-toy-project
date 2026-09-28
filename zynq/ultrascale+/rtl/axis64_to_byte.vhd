@@ -92,8 +92,8 @@ begin
   byte_data     <= data_i((lane_i * 8) + 7 downto lane_i * 8);
   byte_sop      <= buffered_i and start_of_frame;
   byte_eop      <= buffered_i and last_i
-                   when lane_i = last_lane(keep_i)
-                   else '0';
+                   when lane_i = last_lane(keep_i) else
+                   '0';
 
   unpack : process (clk) is
   begin
