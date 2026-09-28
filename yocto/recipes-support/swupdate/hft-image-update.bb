@@ -4,7 +4,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 
 inherit swupdate
 
-FILESEXTRAPATHS:prepend := "${LAYERDIR}/../deploy/swupdate:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/../../../deploy/swupdate:"
 SRC_URI = "file://sw-description"
 
 SWUPDATE_IMAGES = "hft-image"
