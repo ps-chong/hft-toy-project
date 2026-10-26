@@ -1,0 +1,12 @@
+# Linux containers, generators, and shell scripts require LF. Windows-only
+# PowerShell and batch entry points keep CRLF so cmd.exe parses them reliably.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.bin binary
+*.onnx binary
+*.png binary
+*.dcp binary
+*.wic binary

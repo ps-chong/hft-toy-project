@@ -4,6 +4,8 @@
 /coverage-reports/
 /artifacts/
 /vunit_out/
+# NVC's default library, created by coverage export at the repository root.
+/work/
 *.ncdb
 *.covdb
 CMakeUserPresets.json
