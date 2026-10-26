@@ -1,0 +1,33 @@
+name: Demo smoke
+
+# The Docker Compose demo end to end (demo/run_demo.sh --smoke): exchange
+# simulator, PL software model, R5 firmware on the host adapter, hftd with
+# PostgreSQL, the fault-injection narrative, and the RTL replay of the
+# captured feed compared byte for byte with the software model.
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Build the host image
+        run: docker build -t hft-host:dev -f containers/host/Dockerfile containers/host
+      - name: Run the demo (smoke)
+        run: demo/run_demo.sh --smoke
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: demo-out
+          path: demo/out/
+          if-no-files-found: warn

@@ -1,0 +1,92 @@
+name: Vivado
+
+# Out-of-context synthesis of the PL design with Vivado 2026.1 on the
+# self-hosted Windows runner (scripts/windows/runner.ps1, started on demand).
+#
+# This workflow never runs for pull requests: the self-hosted runner executes
+# repository code on a workstation with locally licensed tools, so only
+# pushes to develop in this repository and manual dispatches may use it.
+# build.tcl fails the job on negative setup or hold slack and on any
+# Critical clock-domain crossing.
+#
+# The job runs only while the repository variable HFT_VIVADO_RUNNER is
+# "online" (set it after `runner.ps1 -Action Install`); otherwise it is
+# skipped instead of queueing for a runner that does not exist. Without the
+# runner, the same gates run locally: scripts/windows/build-fpga.ps1.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "zynq/ultrascale+/rtl/**"
+      - "zynq/ultrascale+/constraints/**"
+      - "zynq/ultrascale+/vivado/**"
+      - "zynq/ultrascale+/board_files/**"
+      - "protocol/generated/vhdl/**"
+      - "scripts/windows/build-fpga.ps1"
+      - "scripts/windows/verify-tools.ps1"
+      - ".github/workflows/vivado.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vivado
+  cancel-in-progress: false
+
+jobs:
+  synthesis:
+    if: >-
+      github.repository == 'ps-chong/hft-toy-project' &&
+      vars.HFT_VIVADO_RUNNER == 'online' &&
+      (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/develop')
+    runs-on: [self-hosted, windows, vivado]
+    timeout-minutes: 90
+    strategy:
+      # One Vivado at a time on the workstation.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        profile: [sim-dma, sfp10g]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      # HFT_VIVADO_LICENSE (a BASIC-tier license directory) comes from the
+      # runner's .env; see scripts/windows/runner.ps1.
+      - name: Synthesize (${{ matrix.profile }})
+        shell: powershell
+        run: scripts/windows/build-fpga.ps1 -Profile ${{ matrix.profile }}
+      - name: Gate summary
+        if: always()
+        shell: powershell
+        run: |
+          $out = "build/vivado/${{ matrix.profile }}"
+          $summary = @("## Vivado ${{ matrix.profile }}", "")
+          if (Test-Path "$out/gates.txt") {
+            $summary += "| Gate | Value |", "| --- | --- |"
+            foreach ($line in Get-Content "$out/gates.txt") {
+              $name, $value = $line -split "=", 2
+              $summary += "| $name | $value |"
+            }
+          } else {
+            $summary += "Synthesis did not reach the gates; see the Vivado log artifact."
+          }
+          if (Test-Path "$out/utilization.rpt") {
+            $summary += "", '```'
+            $summary += Select-String -Path "$out/utilization.rpt" `
+              -Pattern '^\| (CLB LUTs|CLB Registers|Block RAM Tile|URAM|DSPs) ' |
+              ForEach-Object { $_.Line }
+            $summary += '```'
+          }
+          $summary | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vivado-${{ matrix.profile }}
+          path: |
+            build/vivado/${{ matrix.profile }}/*.rpt
+            build/vivado/${{ matrix.profile }}/gates.txt
+            build/vivado/${{ matrix.profile }}/vivado.log
+          if-no-files-found: warn

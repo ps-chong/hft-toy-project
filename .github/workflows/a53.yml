@@ -50,6 +50,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://hft:hft-test@127.0.0.1:5432/hft_test
         run: cargo test --workspace --all-targets
+      - name: Disruptor memory-model checks (loom)
+        env:
+          RUSTFLAGS: --cfg loom
+          CARGO_TARGET_DIR: target/loom
+        run: cargo test -p hft-disruptor --release --test loom
       - name: Validate PostgreSQL migrations
         env:
           PGPASSWORD: hft-test

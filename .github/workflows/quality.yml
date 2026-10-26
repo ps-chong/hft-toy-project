@@ -29,7 +29,7 @@ jobs:
           python -m pip install -e 'python[dev]'
           npm install --global @mermaid-js/mermaid-cli@11.12.0
       - name: Ruff
-        run: ruff check python scripts protocol/generator coverage deploy/swupdate
+        run: ruff check python scripts protocol/generator coverage deploy/swupdate 'zynq/ultrascale+/sim'
       - name: Mypy
         run: mypy --config-file python/pyproject.toml python/src/hft_tools
       - name: Pytest and coverage
@@ -39,12 +39,18 @@ jobs:
             --cov=hft_tools --cov-branch \
             --cov-report=term-missing \
             --cov-report=xml:coverage-reports/python/coverage.xml
-      - name: Render and verify architecture diagrams
+      - name: Render and verify documentation diagrams
         run: |
           python scripts/render_diagrams.py
-          git diff --exit-code -- 'docs/architecture/diagrams/*.mmd'
+          git diff --exit-code -- 'docs/architecture/diagrams/*.mmd' 'docs/workflow/diagrams/*.mmd'
           command -v mmdc
           python scripts/render_diagrams.py --render
+      # The README figures are generated from checked-in data; a stale SVG
+      # fails here rather than drifting from its source.
+      - name: Verify README figures
+        run: |
+          python scripts/render_figures.py
+          git diff --exit-code -- docs/figures/latency-histogram.svg docs/figures/ingress-waveform.svg
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -52,3 +58,4 @@ jobs:
           path: |
             coverage-reports/python/
             docs/architecture/diagrams/*.svg
+            docs/workflow/diagrams/*.svg

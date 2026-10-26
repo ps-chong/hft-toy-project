@@ -16,8 +16,10 @@ if ($repoRoot -ne $expectedRepo) {
     Write-Warning "Expected checkout '$expectedRepo'; using '$repoRoot'."
 }
 
+# Vivado 2026.1 prints its banner for -version but exits with status 1, so
+# the banner is the only reliable signal.
 $version = & $vivado -version 2>&1
-if ($LASTEXITCODE -ne 0 -or ($version -join "`n") -notmatch "Vivado v2026\.1") {
+if (($version -join "`n") -notmatch "Vivado v2026\.1") {
     throw "The executable at '$vivado' is not Vivado 2026.1.`n$version"
 }
 
