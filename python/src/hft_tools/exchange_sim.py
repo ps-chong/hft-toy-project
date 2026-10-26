@@ -1,14 +1,25 @@
-"""Deterministic MoldUDP64 publisher and SoupBinTCP/OUCH exchange simulator."""
+"""Deterministic MoldUDP64 publisher and SoupBinTCP/OUCH exchange simulator.
+
+Faults can be injected on demand for demonstrations: SIGUSR1 skips one feed
+sequence number (a gap), SIGUSR2 truncates the next packet (malformed).
+"""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
 import contextlib
+import json
+import signal
 import socket
 from dataclasses import dataclass, field
 
 from .protocol import SoupPacket, encode_itch_add, encode_mold, write_soup
+
+
+def announce(kind: str, **fields: object) -> None:
+    """One JSON line per notable event, like the other demo processes."""
+    print(json.dumps({"type": kind, **fields}), flush=True)
 
 
 def parse_endpoint(value: str) -> tuple[str, int]:
@@ -26,6 +37,8 @@ class SimulatorState:
     feed_sequence: int = 1
     next_order_reference: int = 1
     accepted_orders: dict[int, bytes] = field(default_factory=dict)
+    pending_gap: bool = False
+    pending_malformed: bool = False
 
 
 class ExchangeSimulator:
@@ -59,11 +72,22 @@ class ExchangeSimulator:
         )
         packet = encode_mold("SIM0000001", sequence, [message])
         self.state.feed_sequence += 1
-        if self.gap_every and sequence % self.gap_every == 0:
+        if self.state.pending_gap or (self.gap_every and sequence % self.gap_every == 0):
+            self.state.pending_gap = False
             self.state.feed_sequence += 1
-        if self.malformed_every and sequence % self.malformed_every == 0:
+            announce("exchange_gap", skipped=self.state.feed_sequence - 1)
+        periodic = bool(self.malformed_every) and sequence % self.malformed_every == 0
+        if self.state.pending_malformed or periodic:
+            self.state.pending_malformed = False
+            announce("exchange_malformed", sequence=sequence)
             return packet[:-1]
         return packet
+
+    def inject_gap(self) -> None:
+        self.state.pending_gap = True
+
+    def inject_malformed(self) -> None:
+        self.state.pending_malformed = True
 
     async def publish_feed(self, stop: asyncio.Event) -> None:
         loop = asyncio.get_running_loop()
@@ -125,11 +149,20 @@ class ExchangeSimulator:
 
     async def run(self) -> None:  # pragma: no cover - long-running service loop
         stop = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        loop.add_signal_handler(signal.SIGUSR1, self.inject_gap)
+        loop.add_signal_handler(signal.SIGUSR2, self.inject_malformed)
+        loop.add_signal_handler(signal.SIGTERM, stop.set)
         publisher = asyncio.create_task(self.publish_feed(stop))
         server = await asyncio.start_server(self.handle_ouch, *self.ouch_bind)
+        announce(
+            "exchange_ready",
+            itch_target=list(self.itch_target),
+            ouch_bind=list(self.ouch_bind),
+        )
         try:
             async with server:
-                await server.serve_forever()
+                await stop.wait()
         finally:
             stop.set()
             publisher.cancel()

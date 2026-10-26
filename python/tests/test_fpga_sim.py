@@ -8,15 +8,7 @@ from xml.etree import ElementTree
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-BOARD_DIR = (
-    ROOT
-    / "zynq"
-    / "ultrascale+"
-    / "board_files"
-    / "myirtech.com"
-    / "myd_czu5ev_v2"
-    / "1.0"
-)
+BOARD_DIR = ROOT / "zynq" / "ultrascale+" / "board_files" / "myirtech.com" / "myd_czu5ev_v2" / "1.0"
 
 
 def load_run_module():
@@ -39,9 +31,19 @@ def test_coverage_databases_prefer_ncdb(tmp_path: Path) -> None:
     (nested / "stale.covdb").write_bytes(b"old")
     cwd_dump = tmp_path / "tb_risk_guard-tb.ncdb"
     cwd_dump.write_bytes(b"cwd")
-    assert run.coverage_databases(tmp_path, cwd_dump.parent) == sorted(
-        [cwd_dump, database]
-    )
+    assert run.coverage_databases(tmp_path, cwd_dump.parent) == sorted([cwd_dump, database])
+
+
+def test_source_list_covers_every_rtl_file() -> None:
+    run = load_run_module()
+    listed = run.rtl_sources()
+    assert all(path.is_file() for path in listed)
+    assert len(set(listed)) == len(listed)
+    rtl = set((ROOT / "zynq" / "ultrascale+" / "rtl").glob("*.vhd"))
+    assert rtl <= set(listed), sorted(path.name for path in rtl - set(listed))
+    # Packages compile first, the top level last.
+    assert listed[0].name == "hft_protocol_pkg.vhd"
+    assert listed[-1].name == "myd_czu5ev_v2_hft_top.vhd"
 
 
 def test_myd_board_definition_declares_verified_part_and_gth_pins() -> None:

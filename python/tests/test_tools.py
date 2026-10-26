@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 from textual.widgets import Static
 
-from hft_tools.dashboard import HftDashboard, request_status
+from hft_tools.dashboard import HftDashboard, render_status, request_status
 from hft_tools.exchange_sim import ExchangeSimulator, parse_endpoint
 from hft_tools.journal_export import export_journal, parse_records
 from hft_tools.latency_report import read_samples, render_html, summarize
@@ -261,6 +261,25 @@ def test_journal_export_uses_structured_records(
     output = tmp_path / "journal.jsonl"
     assert export_journal(output, session="one") == 1
     assert "accepted" in output.read_text(encoding="utf-8")
+
+
+def test_dashboard_renders_state_and_counters() -> None:
+    text = render_status(
+        {
+            "ok": True,
+            "state": {"armed": True, "killed": False, "revision": 4, "strategy_id": 1},
+            "counters": {
+                "intents_received": 10,
+                "intents_sent": 9,
+                "intents_blocked": 1,
+                "accepted": 9,
+                "intent_to_ack_p50_ns": 195_455,
+            },
+        }
+    )
+    assert "Armed: True" in text
+    assert "Intents received / sent / blocked: 10 / 9 / 1" in text
+    assert "195.5 us / n/a" in text
 
 
 def test_dashboard_connected_and_disconnected_states(tmp_path: Path) -> None:

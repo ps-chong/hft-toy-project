@@ -21,7 +21,9 @@ dev = [
   "pytest-cov>=6.2",
   "ruff>=0.13",
   "vsg>=3.35",
-  "vunit_hdl>=4.7"
+  "vunit_hdl>=4.7",
+  # Exact: docs/figures/ingress-waveform.svg is checked for drift in CI.
+  "wavedrom==2.0.3.post3"
 ]
 
 [project.scripts]

@@ -24,6 +24,37 @@ async def request_status(socket_path: Path) -> dict[str, Any]:
         await writer.wait_closed()
 
 
+def render_status(response: dict[str, Any]) -> str:
+    """Text for one status reply: operator state, then order-flow counters."""
+    state = response.get("state", {})
+    counters = response.get("counters", {})
+
+    def micros(name: str) -> str:
+        value = counters.get(name)
+        return "n/a" if value is None else f"{value / 1000:.1f} us"
+
+    return "\n".join(
+        (
+            "Daemon: connected",
+            f"Armed: {state.get('armed', False)}",
+            f"Killed: {state.get('killed', True)}",
+            f"Risk revision: {state.get('revision', 'unknown')}",
+            f"Strategy: {state.get('strategy_id', 'unknown')}",
+            f"Max quantity: {state.get('max_quantity', 'unknown')}",
+            f"Price collar: {state.get('price_floor', 'unknown')} - "
+            f"{state.get('price_ceiling', 'unknown')}",
+            "",
+            f"Intents received / sent / blocked: {counters.get('intents_received', 0)} / "
+            f"{counters.get('intents_sent', 0)} / {counters.get('intents_blocked', 0)}",
+            f"Exchange accepted / rejected: {counters.get('accepted', 0)} / "
+            f"{counters.get('rejected', 0)}",
+            f"Intent to ack p50 / p99: {micros('intent_to_ack_p50_ns')} / "
+            f"{micros('intent_to_ack_p99_ns')}",
+            f"Journal records dropped: {counters.get('journal_dropped', 0)}",
+        )
+    )
+
+
 class HftDashboard(App[None]):
     CSS = """
     #status { padding: 1 2; height: 100%; }
@@ -48,20 +79,7 @@ class HftDashboard(App[None]):
         widget = self.query_one("#status", Static)
         try:
             response = await request_status(self.socket_path)
-            state = response.get("state", {})
-            widget.update(
-                "\n".join(
-                    (
-                        "Daemon: connected",
-                        f"Armed: {state.get('armed', False)}",
-                        f"Killed: {state.get('killed', True)}",
-                        f"Risk revision: {state.get('revision', 'unknown')}",
-                        f"Max quantity: {state.get('max_quantity', 'unknown')}",
-                        f"Price collar: {state.get('price_floor', 'unknown')} - "
-                        f"{state.get('price_ceiling', 'unknown')}",
-                    )
-                )
-            )
+            widget.update(render_status(response))
             widget.set_classes("healthy" if response.get("ok") else "failed")
         except (ConnectionError, FileNotFoundError, TimeoutError, json.JSONDecodeError) as error:
             widget.update(f"Daemon: disconnected\n{error}")
