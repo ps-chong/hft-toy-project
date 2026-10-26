@@ -1,3 +1,27 @@
+# Host development and demo stack.
+#
+#   docker compose -f containers/compose.yml up -d postgres          # databases for tests
+#   docker compose -f containers/compose.yml --profile demo up -d    # full demo (demo/run_demo.sh)
+#
+# Demo data path (see docs/workflow/06-demo.md):
+#   exchange --UDP MoldUDP64--> plsim --events.sock--> r5sim --rpmsg.sock--> hftd --OUCH--> exchange
+# The services run the binaries built into build/ and target/ by
+# demo/run_demo.sh, from the repository mounted read-only, and share their
+# Unix sockets through the hft-run volume.
+
+x-hft-runtime: &hft-runtime
+  image: hft-host:dev
+  build:
+    context: host
+    dockerfile: Dockerfile
+  working_dir: /workspace
+  volumes:
+    - ..:/workspace:ro
+    - ../demo/out:/out
+    - hft-run:/run/hft
+  init: true
+  stop_grace_period: 5s
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -15,26 +39,89 @@ services:
     volumes:
       - hft-postgres:/var/lib/postgresql/data
 
+  # Exchange simulator: MoldUDP64 feed out, SoupBinTCP/OUCH order entry in.
+  # SIGUSR1 injects a feed gap, SIGUSR2 a malformed packet.
   exchange:
-    build:
-      context: ..
-      dockerfile: containers/host/Dockerfile
+    <<: *hft-runtime
     command:
-      - python
+      - python3
       - -m
       - hft_tools.exchange_sim
       - --itch-target
-      - 127.0.0.1:9000
+      - ${HFT_ITCH_TARGET:-plsim:9000}
       - --ouch-bind
       - 0.0.0.0:9001
-    working_dir: /workspace
+      - --interval
+      - ${HFT_DEMO_INTERVAL:-0.02}
     environment:
       PYTHONPATH: /workspace/python/src
-    volumes:
-      - ..:/workspace:ro
+      PYTHONUNBUFFERED: "1"
     ports:
-      - "127.0.0.1:9000:9000/udp"
       - "127.0.0.1:9001:9001"
+
+  # Software model of the PL ingress (moldudp64_rx + itch_decoder). Writes
+  # the datagram capture and its own events for the RTL replay cross-check.
+  plsim:
+    <<: *hft-runtime
+    profiles: [demo]
+    command:
+      - target/release/hft-plsim
+      - --listen
+      - 0.0.0.0:9000
+      - --events
+      - /run/hft/events.sock
+      - --capture
+      - /out/capture.bin
+      - --model-out
+      - /out/model_events.bin
+    depends_on:
+      - r5sim
+
+  # The real R5 firmware core (Disruptor pipeline, strategy, risk, kill
+  # switch) on the host C-ABI platform adapter.
+  r5sim:
+    <<: *hft-runtime
+    profiles: [demo]
+    command:
+      - build/host-release/r5/hft_r5_sim
+      - --events
+      - /run/hft/events.sock
+      - --rpmsg
+      - /run/hft/rpmsg.sock
+      - --latency-out
+      - /out/r5_latency.jsonl
+      - --stats-interval-ms
+      - "1000"
+
+  hftd:
+    <<: *hft-runtime
+    profiles: [demo]
+    command: ["target/release/hftd"]
+    environment:
+      HFT_RPMSG_DEVICE: unix:/run/hft/rpmsg.sock
+      HFT_OUCH_ADDR: exchange:9001
+      HFT_CONTROL_SOCKET: /run/hft/control.sock
+      DATABASE_URL: postgres://hft:hft-development-only@postgres:5432/hft
+      HFT_LOG_STDOUT: "1"
+      RUST_LOG: hftd=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      r5sim:
+        condition: service_started
+      exchange:
+        condition: service_started
+
+  # Interactive status view: docker compose --profile demo run --rm dashboard
+  dashboard:
+    <<: *hft-runtime
+    profiles: [dashboard]
+    command: ["python3", "-m", "hft_tools.dashboard", "--socket", "/run/hft/control.sock"]
+    environment:
+      PYTHONPATH: /workspace/python/src
+    tty: true
+    stdin_open: true
 
 volumes:
   hft-postgres:
+  hft-run:
