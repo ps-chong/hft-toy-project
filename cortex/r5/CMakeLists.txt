@@ -10,12 +10,25 @@ target_link_libraries(hft_r5_core INTERFACE hft::project_options
                                             fmt::fmt-header-only)
 
 if(NOT HFT_ENABLE_BOOST)
-  message(FATAL_ERROR "The R5 core requires the pinned Boost.MP11 headers")
+  message(FATAL_ERROR "The R5 core requires the pinned Boost.MP11, Lockfree, and Scope headers")
 endif()
-target_link_libraries(hft_r5_core INTERFACE Boost::mp11 Boost::outcome)
-target_compile_definitions(
-  hft_r5_core
-  INTERFACE BOOST_OUTCOME_FORCE_LEGACY_GCC_BOOST_OUTCOME_C_CONCEPTS=0)
+if(CMAKE_CROSSCOMPILING)
+  # Boost::lockfree also links Boost.Atomic's compiled lock pool, which needs
+  # pthreads. The SPSC queue itself uses std::atomic (BOOST_LOCKFREE_FORCE_BOOST_ATOMIC
+  # stays undefined), so the bare-metal build takes the headers only.
+  add_library(hft_boost_lockfree_headers INTERFACE)
+  target_include_directories(
+    hft_boost_lockfree_headers SYSTEM
+    INTERFACE $<TARGET_PROPERTY:boost_lockfree,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_link_libraries(
+    hft_boost_lockfree_headers
+    INTERFACE Boost::align Boost::assert Boost::config Boost::core
+              Boost::parameter Boost::predef Boost::utility)
+  set(hft_lockfree_target hft_boost_lockfree_headers)
+else()
+  set(hft_lockfree_target Boost::lockfree)
+endif()
+target_link_libraries(hft_r5_core INTERFACE Boost::mp11 ${hft_lockfree_target} Boost::scope)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(hft_r5_core INTERFACE -Wno-error=undef)
 endif()
@@ -39,7 +52,7 @@ if(HFT_ENABLE_CIB)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
-  add_executable(hft_r5_firmware src/firmware_main.cpp)
+  add_executable(hft_r5_firmware src/firmware_main.cpp src/boost_no_exceptions.cpp)
   target_link_libraries(hft_r5_firmware PRIVATE hft::r5_core)
   target_link_options(hft_r5_firmware PRIVATE
                       --specs=nosys.specs
@@ -48,4 +61,10 @@ if(CMAKE_CROSSCOMPILING)
 else()
   add_executable(hft_r5_host_demo src/host_demo.cpp)
   target_link_libraries(hft_r5_host_demo PRIVATE hft::r5_core)
+
+  # Socket-driven R5 model for the Docker Compose demo (POSIX hosts only).
+  if(UNIX)
+    add_executable(hft_r5_sim src/host_platform.cpp)
+    target_link_libraries(hft_r5_sim PRIVATE hft::r5_core)
+  endif()
 endif()

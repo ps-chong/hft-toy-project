@@ -1,6 +1,7 @@
 include(FetchContent)
 
 # Keep every revision immutable. Update intentionally and verify all host/cross builds.
+# SYSTEM keeps third-party headers out of the project's -Werror warning set.
 set(HFT_BOOST_VERSION "1.92.0" CACHE STRING "Pinned Boost version")
 set(HFT_FMT_VERSION "12.0.0" CACHE STRING "Pinned fmt version")
 set(HFT_GTEST_VERSION "1.17.0" CACHE STRING "Pinned GoogleTest version")
@@ -12,17 +13,19 @@ FetchContent_Declare(
   fmt
   URL "https://github.com/fmtlib/fmt/archive/refs/tags/${HFT_FMT_VERSION}.tar.gz"
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  SYSTEM
   EXCLUDE_FROM_ALL)
 FetchContent_MakeAvailable(fmt)
 
 if(HFT_ENABLE_BOOST)
-  set(BOOST_INCLUDE_LIBRARIES mp11 static_string circular_buffer lockfree outcome)
+  set(BOOST_INCLUDE_LIBRARIES mp11 lockfree scope)
   set(BOOST_ENABLE_CMAKE ON)
   FetchContent_Declare(
     Boost
     URL
       "https://github.com/boostorg/boost/releases/download/boost-${HFT_BOOST_VERSION}/boost-${HFT_BOOST_VERSION}-cmake.tar.xz"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SYSTEM
     EXCLUDE_FROM_ALL)
   FetchContent_MakeAvailable(Boost)
 endif()
@@ -34,6 +37,7 @@ if(HFT_ENABLE_CIB)
     GIT_TAG "${HFT_CIB_REVISION}"
     GIT_SHALLOW FALSE
     SOURCE_SUBDIR _hft_header_only
+    SYSTEM
     EXCLUDE_FROM_ALL)
   FetchContent_Declare(
     stdx_source
@@ -41,12 +45,13 @@ if(HFT_ENABLE_CIB)
     GIT_TAG c932eba
     GIT_SHALLOW FALSE
     SOURCE_SUBDIR _hft_header_only
+    SYSTEM
     EXCLUDE_FROM_ALL)
   FetchContent_MakeAvailable(cib_source stdx_source)
 
   add_library(cib INTERFACE)
   target_include_directories(
-    cib
+    cib SYSTEM
     INTERFACE "${cib_source_SOURCE_DIR}/include"
               "${stdx_source_SOURCE_DIR}/include")
   target_link_libraries(cib INTERFACE Boost::mp11 fmt::fmt-header-only)
@@ -60,6 +65,7 @@ if(HFT_BUILD_TESTS)
     URL
       "https://github.com/google/googletest/archive/refs/tags/v${HFT_GTEST_VERSION}.tar.gz"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SYSTEM
     EXCLUDE_FROM_ALL)
   FetchContent_MakeAvailable(googletest)
 endif()

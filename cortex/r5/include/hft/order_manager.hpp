@@ -1,12 +1,15 @@
 #pragma once
 
-#include <algorithm>
+// Event admission and order decisions. Owned by the trading task and called
+// from the Disruptor stages in hft/stages.hpp.
+
 #include <cstdint>
+#include <expected>
 #include <optional>
 
-#include <boost/outcome/basic_result.hpp>
-
+#include "hft/concepts.hpp"
 #include "hft/risk_engine.hpp"
+#include "hft/strategy.hpp"
 #include "hft/types.hpp"
 
 namespace hft {
@@ -17,88 +20,73 @@ enum class ProcessingError : std::uint8_t {
   risk_rejected,
 };
 
-template <typename Derived> struct Strategy {
-  [[nodiscard]] constexpr auto evaluate(MarketEvent const& event) const noexcept
-      -> std::optional<OrderIntent> {
-    return static_cast<Derived const&>(*this).evaluate_impl(event);
-  }
+/// What a validated market event means for the order path.
+enum class Admission : std::uint8_t {
+  ignored,
+  lifecycle,
+  entry_candidate,
 };
 
-struct MirrorStrategy : Strategy<MirrorStrategy> {
-  std::uint32_t order_quantity{1};
-
-  [[nodiscard]] constexpr auto evaluate_impl(MarketEvent const& event) const noexcept
-      -> std::optional<OrderIntent> {
-    if (event.kind != EventKind::add || event.quantity == 0 ||
-        (event.side != Side::buy && event.side != Side::sell)) {
-      return std::nullopt;
-    }
-    return OrderIntent{
-        .action = OrderAction::enter,
-        .side = event.side == Side::buy ? Side::sell : Side::buy,
-        .source_sequence = event.sequence,
-        .symbol = event.symbol,
-        .price = event.price,
-        .quantity = std::min(order_quantity, event.quantity),
-    };
-  }
-};
-
-template <typename Clock, typename Risk = RiskEngine<>,
-          typename StrategyPolicy = MirrorStrategy>
+template <MonotonicClock Clock, typename Risk = RiskEngine<>>
 class OrderManager {
 public:
-  using result_type =
-      boost::outcome_v2::basic_result<
-          std::optional<OrderIntent>, ProcessingError,
-          boost::outcome_v2::policy::all_narrow>;
+  using admission_type = std::expected<Admission, ProcessingError>;
+  using decision_type = std::expected<std::optional<OrderIntent>, ProcessingError>;
 
-  constexpr OrderManager(Clock& clock, Risk& risk, StrategyPolicy strategy = {}) noexcept
-      : clock_(clock), risk_(risk), strategy_(strategy) {}
+  constexpr OrderManager(Clock& clock, Risk& risk) noexcept : clock_(clock), risk_(risk) {}
 
-  [[nodiscard]] auto on_event(MarketEvent const& event) noexcept -> result_type {
-    if (event.abi_version != ipc_abi_version) {
-      return boost::outcome_v2::failure(ProcessingError::abi_mismatch);
+  /// Rejects ABI mismatches and replays, and applies lifecycle events.
+  [[nodiscard]] constexpr auto admit(MarketEvent const& event) noexcept -> admission_type {
+    if (event.abi_version != ipc_abi_version) [[unlikely]] {
+      return std::unexpected(ProcessingError::abi_mismatch);
     }
-    if (event.sequence <= last_event_sequence_) {
-      return boost::outcome_v2::failure(ProcessingError::stale_event);
+    if (event.sequence <= last_event_sequence_) [[unlikely]] {
+      return std::unexpected(ProcessingError::stale_event);
     }
     last_event_sequence_ = event.sequence;
 
-    if (event.kind == EventKind::execute || event.kind == EventKind::cancel ||
-        event.kind == EventKind::erase) {
+    switch (event.kind) {
+    case EventKind::execute:
+    case EventKind::cancel:
+    case EventKind::erase:
       risk_.on_order_closed();
-      return std::nullopt;
+      return Admission::lifecycle;
+    case EventKind::add:
+      return Admission::entry_candidate;
+    default:
+      return Admission::ignored;
     }
-
-    auto candidate = strategy_.evaluate(event);
-    if (!candidate) {
-      return std::nullopt;
-    }
-    candidate->user_ref = next_user_ref_++;
-    candidate->decision_timestamp_ns = clock_.now_ns();
-
-    auto checked = risk_.check(*candidate);
-    if (!checked) {
-      last_risk_error_ = checked.assume_error();
-      return boost::outcome_v2::failure(ProcessingError::risk_rejected);
-    }
-    return std::optional{checked.assume_value()};
   }
 
-  [[nodiscard]] constexpr auto last_risk_error() const noexcept
-      -> std::optional<RiskError> {
+  /// Strategy proposal, then decision stamping, then risk. An empty optional
+  /// means the strategy declined; an error means risk rejected the proposal.
+  [[nodiscard]] constexpr auto decide(MarketEvent const& event,
+                                      StrategySelector& strategies) noexcept
+      -> decision_type {
+    return decision_type{strategies.evaluate(event)}.and_then(
+        [this, &event](std::optional<OrderIntent> candidate) -> decision_type {
+          if (!candidate) {
+            return std::optional<OrderIntent>{};
+          }
+          candidate->user_ref = next_user_ref_++;
+          candidate->decision_timestamp_ns = clock_.now_ns();
+          candidate->stock_locate = event.stock_locate;
+          return risk_.check(*candidate)
+              .transform([](OrderIntent const& approved) { return std::optional{approved}; })
+              .transform_error([this](RiskError error) {
+                last_risk_error_ = error;
+                return ProcessingError::risk_rejected;
+              });
+        });
+  }
+
+  [[nodiscard]] constexpr auto last_risk_error() const noexcept -> std::optional<RiskError> {
     return last_risk_error_;
-  }
-
-  constexpr auto apply_config(RiskConfig config) noexcept -> void {
-    risk_.update_config(config);
   }
 
 private:
   Clock& clock_;
   Risk& risk_;
-  StrategyPolicy strategy_;
   std::uint64_t last_event_sequence_{};
   std::uint32_t next_user_ref_{1};
   std::optional<RiskError> last_risk_error_;

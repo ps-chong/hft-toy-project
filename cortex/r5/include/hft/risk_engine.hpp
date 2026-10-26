@@ -1,14 +1,25 @@
 #pragma once
 
+// Pre-trade risk checks. Owned and mutated only by the trading task.
+//
+// Each rule is an independent predicate. The engine evaluates every rule of a
+// compile-time MP11 list into one violation bitmask, without data-dependent
+// branches, and reports the highest-priority (lowest-index) failure. The same
+// mask feeds per-rule rejection counters, so diagnostics see every rule that
+// failed, not only the first.
+
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
+#include <expected>
+#include <span>
+#include <type_traits>
+#include <utility>
 
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/list.hpp>
-#include <boost/outcome/basic_result.hpp>
 
 #include "hft/types.hpp"
 
@@ -22,6 +33,7 @@ enum class RiskError : std::uint8_t {
   quantity_limit,
   price_collar,
   symbol_disabled,
+  locate_disabled,
   stale_sequence,
   rate_limit,
   open_order_limit,
@@ -39,6 +51,9 @@ struct RiskConfig {
   std::uint32_t max_open_orders{128};
   std::array<Symbol, 8> allowed_symbols{};
   std::size_t allowed_symbol_count{};
+  std::array<std::uint16_t, 8> allowed_locates{};
+  std::size_t allowed_locate_count{};
+  std::uint8_t strategy_id{};
 };
 
 struct RiskState {
@@ -48,172 +63,205 @@ struct RiskState {
   std::uint32_t open_orders{};
 };
 
-template <typename Derived> struct Rule {
-  [[nodiscard]] static constexpr auto evaluate(OrderIntent const& intent,
+template <typename R>
+concept RiskRule = requires(OrderIntent const& intent, RiskConfig const& config,
+                            RiskState const& state) {
+  { R::violated(intent, config, state) } noexcept -> std::same_as<bool>;
+  requires std::same_as<std::remove_cv_t<decltype(R::error)>, RiskError>;
+};
+
+struct AbiRule {
+  static constexpr RiskError error = RiskError::abi_mismatch;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent, RiskConfig const&,
+                                               RiskState const&) noexcept -> bool {
+    return intent.abi_version != ipc_abi_version;
+  }
+};
+
+struct TradingStateRule {
+  static constexpr RiskError error = RiskError::killed;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const&, RiskConfig const& config,
+                                               RiskState const&) noexcept -> bool {
+    return !config.armed || config.killed;
+  }
+};
+
+struct SideRule {
+  static constexpr RiskError error = RiskError::invalid_side;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent, RiskConfig const&,
+                                               RiskState const&) noexcept -> bool {
+    return intent.side != Side::buy && intent.side != Side::sell;
+  }
+};
+
+struct ZeroQuantityRule {
+  static constexpr RiskError error = RiskError::zero_quantity;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent, RiskConfig const&,
+                                               RiskState const&) noexcept -> bool {
+    return intent.quantity == 0U;
+  }
+};
+
+struct QuantityLimitRule {
+  static constexpr RiskError error = RiskError::quantity_limit;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent,
+                                               RiskConfig const& config,
+                                               RiskState const&) noexcept -> bool {
+    return intent.quantity > config.max_quantity;
+  }
+};
+
+struct PriceCollarRule {
+  static constexpr RiskError error = RiskError::price_collar;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent,
+                                               RiskConfig const& config,
+                                               RiskState const&) noexcept -> bool {
+    return intent.price < config.price_floor || intent.price > config.price_ceiling;
+  }
+};
+
+struct SymbolRule {
+  static constexpr RiskError error = RiskError::symbol_disabled;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent,
+                                               RiskConfig const& config,
+                                               RiskState const&) noexcept -> bool {
+    auto const allowed = std::span{config.allowed_symbols}.first(
+        std::min(config.allowed_symbol_count, config.allowed_symbols.size()));
+    auto const key = symbol_key(intent.symbol);
+    return !allowed.empty() && std::ranges::none_of(allowed, [key](Symbol const& symbol) {
+      return symbol_key(symbol) == key;
+    });
+  }
+};
+
+struct LocateRule {
+  static constexpr RiskError error = RiskError::locate_disabled;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent,
+                                               RiskConfig const& config,
+                                               RiskState const&) noexcept -> bool {
+    auto const allowed = std::span{config.allowed_locates}.first(
+        std::min(config.allowed_locate_count, config.allowed_locates.size()));
+    return !allowed.empty() && std::ranges::find(allowed, intent.stock_locate) == allowed.end();
+  }
+};
+
+struct SequenceRule {
+  static constexpr RiskError error = RiskError::stale_sequence;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent, RiskConfig const&,
+                                               RiskState const& state) noexcept -> bool {
+    return intent.source_sequence <= state.last_sequence;
+  }
+};
+
+// A decision timestamp before the window start means the clock regressed;
+// treat it as inside the window so a regression can only tighten the limit.
+[[nodiscard]] constexpr auto inside_rate_window(std::uint64_t timestamp_ns,
                                                 RiskConfig const& config,
-                                                RiskState const& state) noexcept
-      -> std::optional<RiskError> {
-    return Derived::evaluate_impl(intent, config, state);
+                                                RiskState const& state) noexcept -> bool {
+  return timestamp_ns < state.window_started_ns ||
+         timestamp_ns - state.window_started_ns < config.rate_window_ns;
+}
+
+struct RateRule {
+  static constexpr RiskError error = RiskError::rate_limit;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const& intent,
+                                               RiskConfig const& config,
+                                               RiskState const& state) noexcept -> bool {
+    return inside_rate_window(intent.decision_timestamp_ns, config, state) &&
+           state.orders_in_window >= config.max_orders_per_window;
   }
 };
 
-struct AbiRule : Rule<AbiRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const& intent,
-                                                     RiskConfig const&,
-                                                     RiskState const&) noexcept
-      -> std::optional<RiskError> {
-    return intent.abi_version == ipc_abi_version
-               ? std::nullopt
-               : std::optional{RiskError::abi_mismatch};
+struct OpenOrderRule {
+  static constexpr RiskError error = RiskError::open_order_limit;
+  [[nodiscard]] static constexpr auto violated(OrderIntent const&, RiskConfig const& config,
+                                               RiskState const& state) noexcept -> bool {
+    return state.open_orders >= config.max_open_orders;
   }
 };
 
-struct TradingStateRule : Rule<TradingStateRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const&,
-                                                     RiskConfig const& config,
-                                                     RiskState const&) noexcept
-      -> std::optional<RiskError> {
-    return config.armed && !config.killed ? std::nullopt
-                                          : std::optional{RiskError::killed};
-  }
-};
-
-struct SideRule : Rule<SideRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const& intent,
-                                                     RiskConfig const&,
-                                                     RiskState const&) noexcept
-      -> std::optional<RiskError> {
-    return intent.side == Side::buy || intent.side == Side::sell
-               ? std::nullopt
-               : std::optional{RiskError::invalid_side};
-  }
-};
-
-struct QuantityRule : Rule<QuantityRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const& intent,
-                                                     RiskConfig const& config,
-                                                     RiskState const&) noexcept
-      -> std::optional<RiskError> {
-    if (intent.quantity == 0) {
-      return RiskError::zero_quantity;
-    }
-    if (intent.quantity > config.max_quantity) {
-      return RiskError::quantity_limit;
-    }
-    return std::nullopt;
-  }
-};
-
-struct PriceRule : Rule<PriceRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const& intent,
-                                                     RiskConfig const& config,
-                                                     RiskState const&) noexcept
-      -> std::optional<RiskError> {
-    return intent.price >= config.price_floor && intent.price <= config.price_ceiling
-               ? std::nullopt
-               : std::optional{RiskError::price_collar};
-  }
-};
-
-struct SymbolRule : Rule<SymbolRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const& intent,
-                                                     RiskConfig const& config,
-                                                     RiskState const&) noexcept
-      -> std::optional<RiskError> {
-    auto enabled = config.allowed_symbol_count == 0 ||
-                   std::ranges::find(
-                       config.allowed_symbols.begin(),
-                       config.allowed_symbols.begin() +
-                           static_cast<std::ptrdiff_t>(config.allowed_symbol_count),
-                       intent.symbol) !=
-                       config.allowed_symbols.begin() +
-                           static_cast<std::ptrdiff_t>(config.allowed_symbol_count);
-    return enabled ? std::nullopt : std::optional{RiskError::symbol_disabled};
-  }
-};
-
-struct SequenceRule : Rule<SequenceRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const& intent,
-                                                     RiskConfig const&,
-                                                     RiskState const& state) noexcept
-      -> std::optional<RiskError> {
-    return intent.source_sequence > state.last_sequence
-               ? std::nullopt
-               : std::optional{RiskError::stale_sequence};
-  }
-};
-
-struct RateRule : Rule<RateRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const& intent,
-                                                     RiskConfig const& config,
-                                                     RiskState const& state) noexcept
-      -> std::optional<RiskError> {
-    auto const inside_window =
-        intent.decision_timestamp_ns - state.window_started_ns < config.rate_window_ns;
-    return inside_window && state.orders_in_window >= config.max_orders_per_window
-               ? std::optional{RiskError::rate_limit}
-               : std::nullopt;
-  }
-};
-
-struct OpenOrderRule : Rule<OpenOrderRule> {
-  [[nodiscard]] static constexpr auto evaluate_impl(OrderIntent const&,
-                                                     RiskConfig const& config,
-                                                     RiskState const& state) noexcept
-      -> std::optional<RiskError> {
-    return state.open_orders < config.max_open_orders
-               ? std::nullopt
-               : std::optional{RiskError::open_order_limit};
-  }
-};
-
+/// Priority order: earlier rules win when several fail.
 using DefaultRiskRules =
-    boost::mp11::mp_list<AbiRule, TradingStateRule, SideRule, QuantityRule, PriceRule,
-                         SymbolRule, SequenceRule, RateRule, OpenOrderRule>;
+    boost::mp11::mp_list<AbiRule, TradingStateRule, SideRule, ZeroQuantityRule,
+                         QuantityLimitRule, PriceCollarRule, SymbolRule, LocateRule,
+                         SequenceRule, RateRule, OpenOrderRule>;
 
-template <typename RuleList = DefaultRiskRules> class RiskEngine {
+template <typename R>
+using is_risk_rule = std::bool_constant<RiskRule<R>>;
+
+/// Static view of one rule list: its error table and the folded evaluator.
+template <RiskRule... Rules>
+struct RuleTable {
+  static constexpr std::size_t size = sizeof...(Rules);
+  static_assert(size > 0 && size <= 32, "the violation mask is 32 bits wide");
+
+  static constexpr std::array<RiskError, size> errors{Rules::error...};
+
+  /// Bit I is set iff rule I fails. Every rule is evaluated: the predicates
+  /// are cheap compares, and a fixed instruction path keeps latency flat.
+  [[nodiscard]] static constexpr auto evaluate(OrderIntent const& intent,
+                                               RiskConfig const& config,
+                                               RiskState const& state) noexcept
+      -> std::uint32_t {
+    return [&]<std::size_t... I>(std::index_sequence<I...>) {
+      return ((static_cast<std::uint32_t>(Rules::violated(intent, config, state)) << I) | ... |
+              0U);
+    }(std::index_sequence_for<Rules...>{});
+  }
+
+  [[nodiscard]] static constexpr auto first_error(std::uint32_t mask) noexcept -> RiskError {
+    return errors[static_cast<std::size_t>(std::countr_zero(mask))];
+  }
+};
+
+template <typename RuleList = DefaultRiskRules>
+class RiskEngine {
+  static_assert(boost::mp11::mp_all_of<RuleList, is_risk_rule>::value,
+                "every entry of the rule list must model RiskRule");
+
 public:
-  using result_type =
-      boost::outcome_v2::basic_result<OrderIntent, RiskError,
-                                      boost::outcome_v2::policy::all_narrow>;
+  using rules = boost::mp11::mp_apply<RuleTable, RuleList>;
+  using result_type = std::expected<OrderIntent, RiskError>;
 
   constexpr explicit RiskEngine(RiskConfig config = {}) noexcept : config_(config) {}
 
-  constexpr auto update_config(RiskConfig config) noexcept -> void { config_ = config; }
+  constexpr auto update_config(RiskConfig const& config) noexcept -> void { config_ = config; }
 
-  [[nodiscard]] constexpr auto config() const noexcept -> RiskConfig const& {
-    return config_;
-  }
-
+  [[nodiscard]] constexpr auto config() const noexcept -> RiskConfig const& { return config_; }
   [[nodiscard]] constexpr auto state() const noexcept -> RiskState const& { return state_; }
 
-  [[nodiscard]] constexpr auto check(OrderIntent intent) noexcept -> result_type {
-    std::optional<RiskError> failure;
-    boost::mp11::mp_for_each<RuleList>([&](auto rule) {
-      if (!failure) {
-        failure = decltype(rule)::evaluate(intent, config_, state_);
-      }
-    });
-    if (failure) {
-      return boost::outcome_v2::failure(*failure);
-    }
+  /// Rejections per rule, indexed like RuleList.
+  [[nodiscard]] constexpr auto rejections() const noexcept
+      -> std::span<std::uint32_t const, rules::size> {
+    return rejections_;
+  }
 
+  [[nodiscard]] constexpr auto check(OrderIntent intent) noexcept -> result_type {
+    auto const mask = rules::evaluate(intent, config_, state_);
+    if (mask != 0U) [[unlikely]] {
+      count_rejections(mask);
+      return std::unexpected(rules::first_error(mask));
+    }
     intent.risk_revision = config_.revision;
     update_state(intent);
     return intent;
   }
 
   constexpr auto on_order_closed() noexcept -> void {
-    if (state_.open_orders > 0) {
-      --state_.open_orders;
-    }
+    state_.open_orders -= state_.open_orders > 0U ? 1U : 0U;
   }
 
 private:
+  constexpr auto count_rejections(std::uint32_t mask) noexcept -> void {
+    // Visit set bits only: clear the lowest set bit each step.
+    for (; mask != 0U; mask &= mask - 1U) {
+      ++rejections_[static_cast<std::size_t>(std::countr_zero(mask))];
+    }
+  }
+
   constexpr auto update_state(OrderIntent const& intent) noexcept -> void {
     state_.last_sequence = intent.source_sequence;
-    if (intent.decision_timestamp_ns - state_.window_started_ns >=
-        config_.rate_window_ns) {
+    if (!inside_rate_window(intent.decision_timestamp_ns, config_, state_)) {
       state_.window_started_ns = intent.decision_timestamp_ns;
       state_.orders_in_window = 0;
     }
@@ -223,6 +271,7 @@ private:
 
   RiskConfig config_{};
   RiskState state_{};
+  std::array<std::uint32_t, rules::size> rejections_{};
 };
 
 }  // namespace hft

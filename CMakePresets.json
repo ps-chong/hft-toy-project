@@ -20,12 +20,34 @@
     {
       "name": "host-clang-debug",
       "inherits": "base",
-      "displayName": "Host Clang Debug",
+      "displayName": "Host Clang Debug (ASan/UBSan)",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_COMPILER": "clang-19",
+        "CMAKE_CXX_COMPILER": "clang++-19",
         "HFT_ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "host-clang-tsan",
+      "inherits": "base",
+      "displayName": "Host Clang ThreadSanitizer",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang-19",
+        "CMAKE_CXX_COMPILER": "clang++-19",
+        "HFT_ENABLE_TSAN": "ON"
+      }
+    },
+    {
+      "name": "host-release",
+      "inherits": "base",
+      "displayName": "Host GCC release (demo binaries)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "HFT_BUILD_TESTS": "OFF"
       }
     },
     {
@@ -75,6 +97,8 @@
   ],
   "buildPresets": [
     {"name": "host-clang-debug", "configurePreset": "host-clang-debug"},
+    {"name": "host-clang-tsan", "configurePreset": "host-clang-tsan"},
+    {"name": "host-release", "configurePreset": "host-release"},
     {"name": "host-gcc-cxx26", "configurePreset": "host-gcc-cxx26"},
     {"name": "host-coverage", "configurePreset": "host-coverage"},
     {"name": "r5-release", "configurePreset": "r5-release"},
@@ -85,6 +109,12 @@
       "name": "host-clang-debug",
       "configurePreset": "host-clang-debug",
       "output": {"outputOnFailure": true}
+    },
+    {
+      "name": "host-clang-tsan",
+      "configurePreset": "host-clang-tsan",
+      "output": {"outputOnFailure": true},
+      "environment": {"TSAN_OPTIONS": "halt_on_error=1 second_deadlock_stack=1"}
     },
     {
       "name": "host-coverage",

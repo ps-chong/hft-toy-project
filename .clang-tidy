@@ -1,7 +1,11 @@
+# clang-analyzer-optin.performance.Padding is disabled: cache-line padding
+# between cross-context atomics (Disruptor sequences, TripleBuffer indices)
+# is deliberate and the check reports it as waste.
 Checks: >-
   -*,
   bugprone-*,
   clang-analyzer-*,
+  -clang-analyzer-optin.performance.Padding,
   concurrency-*,
   cppcoreguidelines-owning-memory,
   cppcoreguidelines-pro-type-member-init,
