@@ -10,11 +10,15 @@ param(
     [string]$Repository = "ps-chong/hft-toy-project",
     [int]$IntervalSeconds = 30,
     [int]$TimeoutMinutes = 90,
-    [string]$LogDirectory = (Join-Path $PSScriptRoot "..\..\build\ci-logs"),
+    [string]$LogDirectory,
     [string]$Gh = "C:\Program Files\GitHub CLI\gh.exe"
 )
 
 $ErrorActionPreference = "Stop"
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty in parameter defaults.
+if (-not $LogDirectory) {
+    $LogDirectory = Join-Path $PSScriptRoot "..\..\build\ci-logs"
+}
 if (-not $Sha) {
     $git = Join-Path $env:LOCALAPPDATA "Programs\Git\cmd\git.exe"
     $Sha = (& $git rev-parse HEAD).Trim()
