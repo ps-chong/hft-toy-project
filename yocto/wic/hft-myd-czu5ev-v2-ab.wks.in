@@ -1,13 +1,11 @@
 # short-description: MYD-CZU5EV-V2 HFT redundant A/B eMMC image
 # long-description: Two 128 MiB boot and two 1536 MiB rootfs slots. Persistent data lives on NVMe.
+# wic parses one directive per line (no backslash continuations). --fixed-size keeps the slots
+# exact: --size is only a minimum that wic scales by IMAGE_OVERHEAD_FACTOR.
 
-part /boot --source bootimg-partition --ondisk mmcblk0 --fstype=vfat \
-  --label boot_a --active --align 4096 --size 128
-part --source bootimg-partition --ondisk mmcblk0 --fstype=vfat \
-  --label boot_b --align 4096 --size 128
-part / --source rootfs --ondisk mmcblk0 --fstype=ext4 \
-  --label rootfs_a --align 4096 --size 1536
-part --source rootfs --ondisk mmcblk0 --fstype=ext4 \
-  --label rootfs_b --align 4096 --size 1536
+part /boot --source bootimg-partition --ondisk mmcblk0 --fstype=vfat --label boot_a --active --align 4096 --fixed-size 128M
+part --source bootimg-partition --ondisk mmcblk0 --fstype=vfat --label boot_b --align 4096 --fixed-size 128M
+part / --source rootfs --ondisk mmcblk0 --fstype=ext4 --label rootfs_a --align 4096 --fixed-size 1536M
+part --source rootfs --ondisk mmcblk0 --fstype=ext4 --label rootfs_b --align 4096 --fixed-size 1536M
 
 bootloader --ptable gpt

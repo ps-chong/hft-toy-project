@@ -23,6 +23,10 @@ jobs:
           restore-keys: yocto-scarthgap-
       - name: Build Yocto container
         run: docker build -t hft-yocto -f containers/yocto/Dockerfile .
+      # bitbake runs as the image's "builder" user (UID 1000), which must be
+      # able to create build/ and write the restored caches.
+      - name: Hand the workspace to the build user
+        run: sudo chown -R 1000:1000 "$GITHUB_WORKSPACE"
       - name: Validate layers and parse recipes
         run: |
           docker run --rm \
@@ -41,7 +45,7 @@ jobs:
         with:
           name: myd-czu5ev-v2-yocto-artifacts
           path: |
-            yocto/build/tmp/deploy/images/hft-myd-czu5ev-v2/*.wic*
-            yocto/build/tmp/deploy/images/hft-myd-czu5ev-v2/*.swu
-            yocto/build/tmp/deploy/spdx/
+            build/tmp/deploy/images/hft-myd-czu5ev-v2/*.wic*
+            build/tmp/deploy/images/hft-myd-czu5ev-v2/*.swu
+            build/tmp/deploy/spdx/
           if-no-files-found: warn
