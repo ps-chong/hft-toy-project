@@ -87,3 +87,21 @@ def test_vector_manifest_references_existing_files() -> None:
         assert payload.is_file()
         assert payload.stat().st_size == vector["size"]
         assert payload.read_bytes()[2] == vector["record_type"]
+
+    ipc = json.loads((ROOT / "protocol" / "schema" / "ipc.yaml").read_text(encoding="utf-8"))
+    assert {vector["record"] for vector in manifest["ipc_vectors"]} == set(ipc["records"])
+    for vector in manifest["ipc_vectors"]:
+        payload = (vector_dir / vector["file"]).read_bytes()
+        assert len(payload) == vector["size"] == ipc["record_size"]
+        # Every record starts with the little-endian ABI version.
+        assert int.from_bytes(payload[:2], "little") == ipc["version"]
+
+
+def test_ipc_records_tile_their_size_exactly() -> None:
+    ipc = json.loads((ROOT / "protocol" / "schema" / "ipc.yaml").read_text(encoding="utf-8"))
+    for name, record in ipc["records"].items():
+        cursor = 0
+        for field in record["fields"]:
+            assert field["offset"] == cursor, f"{name}.{field['name']}"
+            cursor += field["size"]
+        assert cursor == ipc["record_size"], name

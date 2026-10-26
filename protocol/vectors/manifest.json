@@ -1,5 +1,28 @@
 {
-  "schema_sha256": "b467d912ddcf2b7d7ab2351d1354c236773f6ccfb6a16af5ffeff283ca808fcf",
+  "ipc_vectors": [
+    {
+      "file": "ipc_normalized_event.bin",
+      "record": "normalized_event",
+      "size": 64
+    },
+    {
+      "file": "ipc_order_intent.bin",
+      "record": "order_intent",
+      "size": 64
+    },
+    {
+      "file": "ipc_risk_config.bin",
+      "record": "risk_config",
+      "size": 64
+    }
+  ],
+  "replay": {
+    "capture": "replay_capture.bin",
+    "datagrams": 6,
+    "events": 9,
+    "expected_events": "replay_expected.bin"
+  },
+  "schema_sha256": "ba4292b7c035e026b044ecdaa3817076ee61f2d6436393b326ce3473a2f309cb",
   "telemetry_vectors": [
     {
       "file": "telemetry_event.bin",
@@ -25,6 +48,12 @@
       "file": "mold_heartbeat.bin",
       "messages": 0,
       "sequence": 3,
+      "valid": true
+    },
+    {
+      "file": "mold_mixed.bin",
+      "messages": 7,
+      "sequence": 10,
       "valid": true
     },
     {

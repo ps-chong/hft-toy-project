@@ -1,6 +1,6 @@
 {
   "name": "HFT FPGA UDP telemetry",
-  "version": 1,
+  "version": 2,
   "byte_order": "big",
   "ether_type": "0x0800",
   "ip_protocol": 17,
@@ -21,6 +21,6 @@
     {"name": "price", "offset": 40, "size": 8, "type": "u64"},
     {"name": "quantity", "offset": 48, "size": 4, "type": "u32"},
     {"name": "rx_dropped", "offset": 52, "size": 4, "type": "u32"},
-    {"name": "reserved1", "offset": 56, "size": 8, "type": "bytes"}
+    {"name": "ingress_cycles", "offset": 56, "size": 8, "type": "u64", "description": "axis_clk cycle counter latched at the frame start of the source packet"}
   ]
 }

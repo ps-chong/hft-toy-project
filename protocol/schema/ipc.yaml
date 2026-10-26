@@ -1,39 +1,71 @@
 {
   "name": "HFT PL-R5-A53 IPC",
-  "version": 1,
+  "version": 2,
   "byte_order": "little",
   "cache_line_size": 64,
-  "normalized_event": {
-    "size": 64,
-    "fields": [
-      {"name": "abi_version", "offset": 0, "size": 2, "type": "u16"},
-      {"name": "kind", "offset": 2, "size": 1, "type": "u8"},
-      {"name": "side", "offset": 3, "size": 1, "type": "u8"},
-      {"name": "flags", "offset": 4, "size": 4, "type": "u32"},
-      {"name": "sequence", "offset": 8, "size": 8, "type": "u64"},
-      {"name": "timestamp_ns", "offset": 16, "size": 8, "type": "u64"},
-      {"name": "order_reference", "offset": 24, "size": 8, "type": "u64"},
-      {"name": "symbol", "offset": 32, "size": 8, "type": "ascii"},
-      {"name": "price", "offset": 40, "size": 8, "type": "u64"},
-      {"name": "quantity", "offset": 48, "size": 4, "type": "u32"},
-      {"name": "reserved", "offset": 52, "size": 12, "type": "bytes"}
-    ]
-  },
-  "order_intent": {
-    "size": 64,
-    "fields": [
-      {"name": "abi_version", "offset": 0, "size": 2, "type": "u16"},
-      {"name": "action", "offset": 2, "size": 1, "type": "u8"},
-      {"name": "side", "offset": 3, "size": 1, "type": "u8"},
-      {"name": "user_ref", "offset": 4, "size": 4, "type": "u32"},
-      {"name": "source_sequence", "offset": 8, "size": 8, "type": "u64"},
-      {"name": "decision_timestamp_ns", "offset": 16, "size": 8, "type": "u64"},
-      {"name": "symbol", "offset": 24, "size": 8, "type": "ascii"},
-      {"name": "price", "offset": 32, "size": 8, "type": "u64"},
-      {"name": "quantity", "offset": 40, "size": 4, "type": "u32"},
-      {"name": "risk_revision", "offset": 44, "size": 4, "type": "u32"},
-      {"name": "reserved", "offset": 48, "size": 16, "type": "bytes"}
-    ]
+  "record_size": 64,
+  "records": {
+    "normalized_event": {
+      "cpp_type": "MarketEvent",
+      "rust_type": "MarketEvent",
+      "direction": "PL/A53 -> R5",
+      "flags": {"feed_gap": 0, "stale": 1},
+      "fields": [
+        {"name": "abi_version", "offset": 0, "size": 2, "type": "u16"},
+        {"name": "kind", "offset": 2, "size": 1, "type": "u8", "enum": "EventKind"},
+        {"name": "side", "offset": 3, "size": 1, "type": "u8", "enum": "Side"},
+        {"name": "flags", "offset": 4, "size": 4, "type": "u32"},
+        {"name": "sequence", "offset": 8, "size": 8, "type": "u64"},
+        {"name": "timestamp_ns", "offset": 16, "size": 8, "type": "u64"},
+        {"name": "order_reference", "offset": 24, "size": 8, "type": "u64"},
+        {"name": "symbol", "offset": 32, "size": 8, "type": "ascii"},
+        {"name": "price", "offset": 40, "size": 8, "type": "u64"},
+        {"name": "quantity", "offset": 48, "size": 4, "type": "u32"},
+        {"name": "stock_locate", "offset": 52, "size": 2, "type": "u16"},
+        {"name": "reserved", "offset": 54, "size": 2, "type": "bytes"},
+        {"name": "new_order_reference", "offset": 56, "size": 8, "type": "u64"}
+      ]
+    },
+    "order_intent": {
+      "cpp_type": "OrderIntent",
+      "rust_type": "OrderIntent",
+      "direction": "R5 -> A53",
+      "fields": [
+        {"name": "abi_version", "offset": 0, "size": 2, "type": "u16"},
+        {"name": "action", "offset": 2, "size": 1, "type": "u8", "enum": "OrderAction"},
+        {"name": "side", "offset": 3, "size": 1, "type": "u8", "enum": "Side"},
+        {"name": "user_ref", "offset": 4, "size": 4, "type": "u32"},
+        {"name": "source_sequence", "offset": 8, "size": 8, "type": "u64"},
+        {"name": "decision_timestamp_ns", "offset": 16, "size": 8, "type": "u64"},
+        {"name": "symbol", "offset": 24, "size": 8, "type": "ascii"},
+        {"name": "price", "offset": 32, "size": 8, "type": "u64"},
+        {"name": "quantity", "offset": 40, "size": 4, "type": "u32"},
+        {"name": "risk_revision", "offset": 44, "size": 4, "type": "u32"},
+        {"name": "stock_locate", "offset": 48, "size": 2, "type": "u16"},
+        {"name": "reserved", "offset": 50, "size": 14, "type": "bytes"}
+      ]
+    },
+    "risk_config": {
+      "cpp_type": "RiskConfigRecord",
+      "rust_type": "RiskConfigRecord",
+      "direction": "A53 -> R5",
+      "flags": {"armed": 0, "kill": 1, "clear_kill": 2},
+      "fields": [
+        {"name": "abi_version", "offset": 0, "size": 2, "type": "u16"},
+        {"name": "flags", "offset": 2, "size": 2, "type": "u16"},
+        {"name": "revision", "offset": 4, "size": 4, "type": "u32"},
+        {"name": "max_quantity", "offset": 8, "size": 4, "type": "u32"},
+        {"name": "max_orders_per_window", "offset": 12, "size": 4, "type": "u32"},
+        {"name": "price_floor", "offset": 16, "size": 8, "type": "u64"},
+        {"name": "price_ceiling", "offset": 24, "size": 8, "type": "u64"},
+        {"name": "rate_window_ns", "offset": 32, "size": 8, "type": "u64"},
+        {"name": "max_open_orders", "offset": 40, "size": 4, "type": "u32"},
+        {"name": "strategy_id", "offset": 44, "size": 1, "type": "u8"},
+        {"name": "allowed_locate_count", "offset": 45, "size": 1, "type": "u8"},
+        {"name": "reserved", "offset": 46, "size": 2, "type": "bytes"},
+        {"name": "allowed_locates", "offset": 48, "size": 16, "type": "u16_array"}
+      ]
+    }
   },
   "rings": {
     "pl_to_r5_depth": 1024,

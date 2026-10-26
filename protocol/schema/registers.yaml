@@ -1,13 +1,15 @@
 {
   "name": "HFT PL control/status",
-  "version": 1,
+  "version": 2,
   "base_address": "0xA0000000",
   "span": "0x00010000",
+  "clock_domain": "ps_clk",
+  "commit_semantics": "Writes to rw registers land in ps_clk shadow registers. Writing 1 to COMMIT.request transfers the whole shadow set to axis_clk through one cdc_snapshot handshake; CONFIG_REVISION increments when axis_clk has applied it. ro counters are sampled into one snapshot, so 64-bit values are never torn.",
   "registers": [
     {"name": "BUILD_ID", "offset": "0x0000", "access": "ro", "reset": "0x48544654", "description": "ASCII HFTT"},
-    {"name": "ABI_VERSION", "offset": "0x0004", "access": "ro", "reset": 1},
-    {"name": "CONTROL", "offset": "0x0008", "access": "rw", "reset": 1, "bits": {"enable": 0, "kill": 1, "clear_counters": 2}},
-    {"name": "STATUS", "offset": "0x000C", "access": "ro", "reset": 0, "bits": {"link_up": 0, "stale": 1, "overflow": 2, "killed": 3}},
+    {"name": "ABI_VERSION", "offset": "0x0004", "access": "ro", "reset": 2},
+    {"name": "CONTROL", "offset": "0x0008", "access": "rw", "reset": 2, "bits": {"enable": 0, "kill": 1, "clear_faults": 2}, "description": "Shadowed; takes effect on COMMIT"},
+    {"name": "STATUS", "offset": "0x000C", "access": "ro", "reset": 0, "bits": {"link_up": 0, "stale": 1, "overflow": 2, "killed": 3, "commit_busy": 4}},
     {"name": "EXPECTED_SEQUENCE_LO", "offset": "0x0010", "access": "ro", "reset": 0},
     {"name": "EXPECTED_SEQUENCE_HI", "offset": "0x0014", "access": "ro", "reset": 0},
     {"name": "PACKET_COUNT_LO", "offset": "0x0018", "access": "ro", "reset": 0},
@@ -15,8 +17,16 @@
     {"name": "DROP_COUNT", "offset": "0x0020", "access": "ro", "reset": 0},
     {"name": "MALFORMED_COUNT", "offset": "0x0024", "access": "ro", "reset": 0},
     {"name": "GAP_COUNT", "offset": "0x0028", "access": "ro", "reset": 0},
+    {"name": "COMMIT", "offset": "0x002C", "access": "wo", "reset": 0, "bits": {"request": 0}, "description": "Write 1 to apply the shadow configuration atomically"},
+    {"name": "CONFIG_REVISION", "offset": "0x0030", "access": "ro", "reset": 0, "description": "Number of configurations applied in axis_clk"},
+    {"name": "TELEMETRY_DROP_COUNT", "offset": "0x0034", "access": "ro", "reset": 0},
     {"name": "RISK_MAX_QTY", "offset": "0x0040", "access": "rw", "reset": 1000},
-    {"name": "RISK_PRICE_FLOOR", "offset": "0x0048", "access": "rw", "reset": 1},
-    {"name": "RISK_PRICE_CEILING", "offset": "0x0050", "access": "rw", "reset": 1000000000}
+    {"name": "RISK_PRICE_FLOOR", "offset": "0x0048", "access": "rw", "reset": 1, "description": "Low 32 bits"},
+    {"name": "RISK_PRICE_FLOOR_HI", "offset": "0x004C", "access": "rw", "reset": 0},
+    {"name": "RISK_PRICE_CEILING", "offset": "0x0050", "access": "rw", "reset": 1000000000, "description": "Low 32 bits"},
+    {"name": "RISK_PRICE_CEILING_HI", "offset": "0x0054", "access": "rw", "reset": 0},
+    {"name": "STOCK_LOCATE", "offset": "0x0058", "access": "rw", "reset": 0, "description": "Instrument whose book the PL maintains; 0 tracks none"},
+    {"name": "STRATEGY_SELECT", "offset": "0x005C", "access": "rw", "reset": 0, "description": "0 = spread cross, 1 = imbalance"},
+    {"name": "TOB_ANCHOR_PRICE", "offset": "0x0060", "access": "rw", "reset": 0, "description": "Lowest price of the 1024-tick ladder band"}
   ]
 }
