@@ -2,9 +2,11 @@
 
 ## Host prerequisites
 
-Use the checked-in containers for reproducibility. A native Ubuntu 24.04 setup
-needs CMake/Ninja, Clang 18, GCC 14+, Python 3.12, GHDL, Rust 1.97.1, and the
-cross compilers. The root README contains the shortest commands.
+Use the checked-in containers for reproducibility (`containers/host/Dockerfile`
+is the image CI, the demo and `scripts/ci/local.sh` all use). A native
+Ubuntu 24.04 setup needs CMake/Ninja, Clang 19, GCC 14 as the default
+`gcc`/`g++`/`gcov`, Python 3.12, GHDL, NVC 1.23, Rust 1.97.1, and the cross
+compilers. The step-by-step guides are in [docs/workflow](workflow/README.md).
 
 ## Programmable-logic simulation
 
@@ -22,9 +24,13 @@ the NVC 1.23.0 Ubuntu 24.04 package from the upstream GitHub release.
 ## R5 host and target
 
 ```bash
-cmake --preset host-clang-debug
+cmake --preset host-clang-debug          # ASan + UBSan
 cmake --build --preset host-clang-debug
 ctest --preset host-clang-debug
+
+cmake --preset host-clang-tsan           # ThreadSanitizer
+cmake --build --preset host-clang-tsan
+ctest --preset host-clang-tsan
 
 export ARM_GNU_TOOLCHAIN_ROOT=/opt/arm-gnu-toolchain
 cmake --preset r5-release
@@ -59,9 +65,13 @@ completing the deferred hardware checks.
 ```powershell
 Set-Location C:\Users\121679\hft-toy-project
 .\scripts\windows\verify-tools.ps1
-.\scripts\windows\build-fpga.ps1 -Profile sim-dma
-.\scripts\windows\build-fpga.ps1 -Profile sfp10g
+.\scripts\windows\split-vivado-license.ps1        # once, if the license also holds ALVEO
+.\scripts\windows\build-fpga.ps1 -Profile sim-dma -License "$env:APPDATA\XilinxLicense-BASIC"
+.\scripts\windows\build-fpga.ps1 -Profile sfp10g -License "$env:APPDATA\XilinxLicense-BASIC"
 ```
+
+Each run fails on negative setup or hold slack and on Critical CDC findings;
+`build\vivado\<profile>\gates.txt` records the values.
 
 Both profiles target `xczu5ev-sfvc784-2-e`; `sfp10g` additionally checks for
 the AMD Ethernet subsystem. The repo-local MYIR board repository is registered

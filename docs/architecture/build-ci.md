@@ -4,59 +4,83 @@
 
 ```mermaid
 flowchart LR
-    Source["develop branch"] --> FPGA["ZU5EV PL hosted simulation"]
-    Source --> R5Host["R5 host GoogleTest and clang-tidy"]
-    Source --> R5Cross["R5 Arm GNU cross-link"]
-    Source --> Rust["A53 Rust tests and cross-link"]
-    Source --> Yocto["Manual/nightly Yocto image"]
+    Source["develop branch"] --> FPGA["FPGA: VSG, VUnit on GHDL and NVC"]
+    Source --> R5Host["R5: ASan/UBSan, TSAN, clang-tidy, coverage"]
+    Source --> R5Cross["R5: Arm GNU cross-link"]
+    Source --> Rust["A53: clippy, tests, loom, aarch64"]
+    Source --> Quality["Python, docs, figure drift"]
+    Source --> Demo["Demo smoke (Docker Compose)"]
     Source --> SWU["SWUpdate contract"]
-    Source --> Windows["Windows local checkout"]
-    Windows --> Vivado["Vivado 2026.1 OOC synthesis"]
-    FPGA --> Reports["JUnit and coverage artifacts"]
+    Source -.->|"runner online"| Vivado["Vivado OOC synthesis<br/>self-hosted Windows"]
+    Source --> Yocto["Yocto image (manual and weekly)"]
+    FPGA --> Reports["JUnit, coverage, demo and Vivado reports"]
     R5Host --> Reports
     R5Cross --> Reports
     Rust --> Reports
-    Yocto --> Reports
-    SWU --> Reports
+    Demo --> Reports
+    Vivado --> Reports
 ```
+
+Every hosted workflow also runs locally, in the same container image, with
+`scripts/ci/local.sh` (see [docs/workflow/07-ci.md](../workflow/07-ci.md)).
 
 ## Local Windows programmable-logic build
 
 The source belongs at `C:\Users\121679\hft-toy-project`; Vivado belongs at
-`C:\AMDDesignTools\2026.1\Vivado`. `verify-tools.ps1` checks both assumptions and
-the version. `build-fpga.ps1` invokes one Tcl entry point, places generated state
-under `build\vivado`, and never opens hardware manager.
-The Tcl flow registers `zynq/ultrascale+/board_files` and targets
-`xczu5ev-sfvc784-2-e`; it does not require a global board-file installation.
+`C:\AMDDesignTools\2026.1\Vivado`. `verify-tools.ps1` checks the version.
+`build-fpga.ps1` invokes one Tcl entry point, places generated state under
+`build\vivado\<profile>`, and never opens the hardware manager. The Tcl flow
+registers `zynq/ultrascale+/board_files`, targets `xczu5ev-sfvc784-2-e`, reads
+the RTL from `rtl/sources.f` (the simulation's list), and fails on negative
+setup or hold slack or a Critical CDC finding. `gates.txt` records the
+values.
+
+Vivado 2026.1 licenses by tier and exposes only the starting tier's devices.
+The free BASIC tier covers the XCZU5EV. If the license file also holds the
+ALVEO tier, `split-vivado-license.ps1` writes a BASIC-only copy and
+`build-fpga.ps1 -License <dir>` (or `HFT_VIVADO_LICENSE`) selects it.
+
+## Vivado in GitHub Actions
+
+`.github/workflows/vivado.yml` runs the same build on a self-hosted Windows
+runner labelled `vivado`. It never runs for pull requests, checks out without
+persisted credentials, runs the two profiles one after the other, and uploads
+the reports. `scripts/windows/runner.ps1` installs the runner under `C:\ghr`
+as the current non-administrator user and starts and stops it on demand.
+Until the runner is registered and the repository variable
+`HFT_VIVADO_RUNNER` is `online`, the job is skipped instead of queueing.
 
 ## C++ build matrix
 
-- Clang debug with ASan/UBSan.
-- GCC coverage with gcovr HTML/Cobertura.
+- Clang 19 debug with ASan/UBSan, and a ThreadSanitizer preset.
+- GCC 14 coverage with gcovr HTML/Cobertura.
 - Arm GNU 13.3.Rel1 C++23 cross-link with exceptions/RTTI disabled.
 - CIB and `fmt` enabled in the target lane.
 - A host C++26 reference lane is defined for a GCC 16 environment; target code
-  remains C++23 because that is the selected supported policy.
+  remains C++23.
 
-Dependencies are immutable CMake FetchContent revisions or release archives.
-The target toolchain archive is checksum-verified.
+Clang 19 is the minimum: with libstdc++, `std::expected` needs the
+`__cpp_concepts` level Clang 18 does not report. Dependencies are immutable
+CMake FetchContent revisions or release archives; the target toolchain archive
+is checksum-verified.
 
 ## Rust build matrix
 
-Rust 1.97.1/Edition 2024 runs fmt, Clippy, unit/property tests, mockall actor
-tests, SQL migration validation, cargo-audit/deny, llvm-cov, and an
-`aarch64-unknown-linux-gnu` release build. Cargo.lock is committed.
+Rust 1.97.1/Edition 2024 runs fmt, Clippy (`-D warnings`, which makes
+`missing_docs` an error), unit/property tests, mockall actor tests, an
+end-to-end daemon test, `loom` model checks, SQL migration validation,
+cargo-audit/deny, llvm-cov, and an `aarch64-unknown-linux-gnu` release build.
+Cargo.lock is committed.
 
 ## Programmable-logic verification
 
-GHDL provides a fast compatibility test. CI installs the pinned NVC 1.23.0
-Ubuntu 24.04 package and collects statement, branch, and functional coverage
-from the simulator databases. VSG checks synthesizable RTL and testbenches.
-Vivado reports are local artifacts because the selected Windows installation
-is not a GitHub runner.
+GHDL and the pinned NVC 1.23.0 both run the full VUnit suite; NVC also
+collects statement, branch, and functional coverage. VSG checks synthesizable
+RTL and testbenches.
 
 ## Workflow boundary
 
-Pushes to `develop` trigger FPGA, R5, and A53 workflows. Yocto is manual/nightly
-because of its resource footprint. No job includes JTAG, a board hostname,
-hardware credentials, or remote SWUpdate installation.
+Pushes to `develop` trigger the FPGA, R5, A53, quality and demo workflows,
+and Vivado when its runner is online. Yocto runs on demand and weekly because
+of its resource footprint. No job includes JTAG, a board hostname, hardware
+credentials, or remote SWUpdate installation.

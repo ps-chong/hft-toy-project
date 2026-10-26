@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant X as Exchange
+    participant PL as PL (VHDL)
+    participant R5 as R5 firmware
+    participant A as hftd (A53)
+    X->>PL: UDP datagram: MoldUDP64 header + ITCH 'A' (100-byte frame)
+    Note over PL: eth_ipv4_udp_rx: MAC/IP/port, IPv4 checksum (cycles 0-5)
+    Note over PL: moldudp64_rx: sequence vs expected, split message (cycle 9: header checked)
+    Note over PL: itch_decoder: normalized event (cycle 15)
+    Note over PL: risk_guard: enabled, not killed, limits (cycle 16)
+    PL->>R5: 64-byte normalized event into the Disruptor ring (cycle 17, 109 ns)
+    Note over PL: telemetry frame out on SFP lane 1 (from cycle 18)
+    Note over R5: BookStage: kill switch, feed_gap flag, book update
+    Note over R5: StrategyRiskStage: strategy proposal, every risk rule
+    R5->>A: approved OrderIntent over RPMsg
+    Note over A: RPMsg owner publishes into the A53 Disruptor ring
+    Note over A: OUCH gateway: trading permitted?
+    A->>X: SoupBinTCP 'U' + OUCH Enter Order
+    X->>A: OUCH Accepted
+    Note over A: journal and analytics read the ring without gating it

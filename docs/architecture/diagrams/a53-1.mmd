@@ -1,13 +1,15 @@
 flowchart LR
-    Remoteproc["systemd remoteproc loader"] --> RPMsg["RPMsg owner"]
-    RPMsg -->|Bounded intents| Supervisor["hftd supervisor"]
-    Supervisor --> Ouch["SoupBinTCP and OUCH owner"]
-    Nvme["NVMe hft_data volume"] --> Storage["PostgreSQL batch owner"]
-    Supervisor -->|try_send| Storage
-    Supervisor -->|try_send| Analytics["Latency owner"]
-    Control["Unix control socket owner"] -->|Watch snapshot| Supervisor
-    RPMsg --> Journal["tracing-journald"]
-    Ouch --> Journal
-    Storage --> Journal
-    CLI["hftctl"] --> Control
-    TUI["Python dashboard"] --> Control
+    Remoteproc["systemd remoteproc loader"] --> RPMsg["RPMsg owner task"]
+    RPMsg -->|publish| Ring["hft-disruptor ring"]
+    Ring -->|gating| Ouch["OUCH gateway<br/>(SoupBinTCP session owner)"]
+    Ring -.->|lossy| Storage["PostgreSQL journal"]
+    Ring -.->|lossy| Analytics["analytics"]
+    Nvme["NVMe hft_data volume"] --> Storage
+    Control["control actor"] -->|risk_config| RPMsg
+    Control -->|trading permitted| Ouch
+    Socket["Unix control socket"] -->|typed commands, oneshot replies| Control
+    CLI["hftctl"] --> Socket
+    TUI["Python dashboard"] --> Socket
+    Supervisor["Supervisor<br/>(TaskTracker)"] -.-> RPMsg
+    Supervisor -.-> Ouch
+    Supervisor -.-> Storage

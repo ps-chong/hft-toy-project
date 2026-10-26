@@ -1,0 +1,7 @@
+flowchart LR
+    Src["cortex/r5 + tests/cpp"] --> Asan["host-clang-debug<br/>ASan + UBSan"]
+    Src --> Tsan["host-clang-tsan<br/>ThreadSanitizer"]
+    Src --> Tidy["clang-tidy"]
+    Src --> Cov["host-coverage<br/>GCC + gcovr"]
+    Src --> Cross["r5-release<br/>Arm GNU, -fno-exceptions"]
+    Src --> Sim["host-release<br/>hft_r5_sim (demo)"]

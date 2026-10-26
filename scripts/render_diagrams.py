@@ -1,4 +1,9 @@
-"""Extract Mermaid blocks from architecture Markdown and render SVG files."""
+"""Extract Mermaid blocks from documentation Markdown and render SVG files.
+
+Each source directory gets its own diagrams/ subdirectory:
+docs/architecture/foo.md's second diagram becomes
+docs/architecture/diagrams/foo-2.mmd (and .svg with --render).
+"""
 
 from __future__ import annotations
 
@@ -83,11 +88,21 @@ def render(
         )
 
 
+DEFAULT_SOURCES = (Path("docs/architecture"), Path("docs/workflow"))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, default=Path("docs/architecture"))
     parser.add_argument(
-        "--output", type=Path, default=Path("docs/architecture/diagrams")
+        "--source",
+        type=Path,
+        action="append",
+        help="Markdown directory (repeatable; default: docs/architecture and docs/workflow)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="diagram directory (single --source only; default SOURCE/diagrams)",
     )
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--command", default="mmdc")
@@ -97,16 +112,19 @@ def main() -> int:
         default=Path(__file__).with_name("mermaid-puppeteer.json"),
     )
     args = parser.parse_args()
+    sources: list[Path] = args.source or list(DEFAULT_SOURCES)
+    if args.output is not None and len(sources) != 1:
+        parser.error("--output needs exactly one --source")
 
-    diagrams = extract(args.source, args.output)
-    if args.render:
-        render(
-            diagrams,
-            args.output,
-            args.command,
-            resolve_puppeteer_config(args.puppeteer_config),
-        )
-    print(f"processed {len(diagrams)} Mermaid diagrams")
+    puppeteer = resolve_puppeteer_config(args.puppeteer_config) if args.render else None
+    total = 0
+    for source in sources:
+        output = args.output or source / "diagrams"
+        diagrams = extract(source, output)
+        if args.render:
+            render(diagrams, output, args.command, puppeteer)
+        total += len(diagrams)
+    print(f"processed {total} Mermaid diagrams")
     return 0
 
 

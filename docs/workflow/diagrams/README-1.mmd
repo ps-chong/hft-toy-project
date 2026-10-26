@@ -1,0 +1,10 @@
+flowchart LR
+    Setup["01 Setup"] --> Contracts["02 Contracts"]
+    Contracts --> FPGA["03 FPGA"]
+    Contracts --> R5["04 R5"]
+    Contracts --> A53["05 A53"]
+    FPGA --> Demo["06 Demo"]
+    R5 --> Demo
+    A53 --> Demo
+    Demo --> CI["07 CI"]
+    CI --> Release["08 Yocto and release"]

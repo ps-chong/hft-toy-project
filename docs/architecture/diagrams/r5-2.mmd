@@ -1,9 +1,12 @@
 flowchart LR
-    PL["PL producer"] --> Events["SPSC MarketEvent ring"]
-    Events --> Executor["Single consumer executor"]
-    Executor --> Intents["SPSC OrderIntent ring"]
-    Intents --> RPMsg["Single publisher"]
-    Control["A53 control actor"] --> Snapshot["Double-buffered config"]
-    Snapshot --> Executor
-    Executor --> Logs["Loss-tolerant log ring"]
-    Logs --> Logger["Low-priority RPMsg logger"]
+    PL["PL producer"] --> Ring["Disruptor ring<br/>(MarketEvent)"]
+    Ring --> Book["BookStage"] --> Strat["StrategyRiskStage"] --> Pub["IntentPublishStage"]
+    Pub --> Intents["SPSC OrderIntent queue"]
+    Intents --> RPMsg["RPMsg publisher"]
+    Ring -.->|lossy, never gates| Journal["Journal reader"]
+    Control["Control actor"] --> Configs["TripleBuffer<br/>(RiskConfig)"]
+    Configs --> Strat
+    Kill["KillSwitch"] --- Book
+    Kill --- Pub
+    Book --> Logs["Per-context log rings"]
+    Logs --> Drain["Log drain task"]

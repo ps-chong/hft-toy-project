@@ -17,20 +17,45 @@ software end-to-end layer.
 
 ## Common vectors
 
-One generated corpus is consumed by VHDL and Rust and is available to C++/Python
-models. It covers valid Add/Cancel, heartbeat, truncation, deterministic
-session/sequence values, and the 64-byte UDP telemetry record. VHDL additionally
-checks AXI-64 `tkeep`, Ethernet/IPv4/UDP filtering, IPv4 checksums, malformed
-headers, and telemetry frame serialization.
+One generated corpus (`protocol/vectors`) is consumed by VHDL, C++, Rust and
+Python. It covers valid Add/Cancel, every decoded ITCH type in one packet,
+heartbeat, truncation, deterministic session/sequence values, the three
+64-byte IPC records, and the 64-byte UDP telemetry record.
+
+The replay session (`replay_capture.bin`, `replay_expected.bin`) is the
+three-way equivalence check of the PL ingress: the generator's Python
+normalization, the Rust software model (`hft-plsim`), and the RTL
+(`tb_replay`) must all produce the same normalized events, byte for byte, for
+a session with a duplicate, a truncated packet, a heartbeat and a sequence
+gap. The demo repeats the check on its own live capture.
+
+```mermaid
+flowchart LR
+    Gen["generate.py<br/>Python normalization"] --> Expected["replay_expected.bin"]
+    Capture["replay_capture.bin"] --> Rust["hft-plsim FeedModel"]
+    Capture --> RTL["tb_replay<br/>eth_ipv4_udp_rx + hft_pipeline"]
+    Rust -->|"must equal"| Expected
+    RTL -->|"must equal"| Expected
+```
+
+VHDL additionally checks AXI-64 `keep` handling at every byte lane,
+Ethernet/IPv4/UDP filtering, IPv4 checksums, malformed headers, the order
+book and ladder, the kill latch, the CDC handshake across clock ratios,
+end-to-end AXI-Lite configuration, the wire-to-event latency, and telemetry
+frame serialization.
 
 ## Per-layer checks
 
-- **VHDL:** VUnit test cases, GHDL compatibility, NVC statement/branch coverage,
-  OSVVM functional bins, VSG, Vivado methodology/timing/CDC locally.
-- **C++:** GoogleTest/GoogleMock, typed boundary seams, ASan/UBSan, clang-tidy,
-  gcovr, Cortex-R5 compile/link/map/size checks.
-- **Rust:** mockall traits, Tokio paused time, proptest, cargo-fuzz target,
-  Clippy, rustfmt, cargo-audit/deny, llvm-cov, AArch64 link.
+- **VHDL:** 52 VUnit test cases on both GHDL and NVC, NVC statement/branch
+  coverage, VSG, and Vivado timing and CDC gates locally.
+- **C++:** GoogleTest/GoogleMock, typed boundary seams, ASan/UBSan,
+  ThreadSanitizer stress tests of the Disruptor, triple buffer and kill
+  switch, clang-tidy, gcovr, Cortex-R5 compile/link/map/size checks.
+- **Rust:** mockall traits, Tokio paused time, proptest, `loom` model checks of
+  the Disruptor, cargo-fuzz target, an end-to-end daemon test, Clippy,
+  rustfmt, cargo-audit/deny, llvm-cov, AArch64 link.
+- **System:** the Docker Compose demo in smoke mode asserts fail-closed start,
+  arming, feed-gap kill, re-arm, operator kill, and the RTL replay match.
 - **Python:** pytest, Hypothesis-ready deterministic helpers, Ruff, mypy, and
   coverage for simulator/update/debug tools.
 - **Yocto/SWUpdate:** layer parse, image manifest/SBOM, migration execution,

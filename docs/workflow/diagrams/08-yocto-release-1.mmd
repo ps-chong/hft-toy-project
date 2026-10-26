@@ -1,0 +1,7 @@
+flowchart LR
+    Kas["kas manifest<br/>pinned layers"] --> Parse["bitbake -p hft-image<br/>(layer and recipe parse)"]
+    Parse --> Onnx["bitbake onnxruntime hft-onnx-smoke<br/>(QEMU user-mode smoke test)"]
+    Onnx --> Image["kas build<br/>hft-image + hft-image-update"]
+    Image --> Wic["A/B WIC image<br/>rootfs <= 1400 MiB"]
+    Image --> Swu["signed SWUpdate bundle"]
+    Image --> Spdx["SPDX documents<br/>with sources"]

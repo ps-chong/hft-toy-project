@@ -1,0 +1,9 @@
+flowchart LR
+    Exchange["exchange<br/>hft_tools.exchange_sim"] -->|"MoldUDP64 / UDP"| Plsim["plsim<br/>hft-plsim (PL model)"]
+    Plsim -->|"events.sock<br/>64-byte events"| R5["r5sim<br/>hft_r5_sim (R5 firmware)"]
+    R5 -->|"rpmsg.sock<br/>intents"| Hftd["hftd"]
+    Hftd -->|"risk_config"| R5
+    Hftd -->|"SoupBinTCP / OUCH"| Exchange
+    Hftd --> Postgres[("PostgreSQL")]
+    Ctl["hftctl / dashboard"] -->|control.sock| Hftd
+    Plsim -->|"capture.bin, model_events.bin"| Replay["tb_replay (VHDL)"]

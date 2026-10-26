@@ -1,15 +1,16 @@
 flowchart LR
-    Source["develop branch"] --> FPGA["ZU5EV PL hosted simulation"]
-    Source --> R5Host["R5 host GoogleTest and clang-tidy"]
-    Source --> R5Cross["R5 Arm GNU cross-link"]
-    Source --> Rust["A53 Rust tests and cross-link"]
-    Source --> Yocto["Manual/nightly Yocto image"]
+    Source["develop branch"] --> FPGA["FPGA: VSG, VUnit on GHDL and NVC"]
+    Source --> R5Host["R5: ASan/UBSan, TSAN, clang-tidy, coverage"]
+    Source --> R5Cross["R5: Arm GNU cross-link"]
+    Source --> Rust["A53: clippy, tests, loom, aarch64"]
+    Source --> Quality["Python, docs, figure drift"]
+    Source --> Demo["Demo smoke (Docker Compose)"]
     Source --> SWU["SWUpdate contract"]
-    Source --> Windows["Windows local checkout"]
-    Windows --> Vivado["Vivado 2026.1 OOC synthesis"]
-    FPGA --> Reports["JUnit and coverage artifacts"]
+    Source -.->|"runner online"| Vivado["Vivado OOC synthesis<br/>self-hosted Windows"]
+    Source --> Yocto["Yocto image (manual and weekly)"]
+    FPGA --> Reports["JUnit, coverage, demo and Vivado reports"]
     R5Host --> Reports
     R5Cross --> Reports
     Rust --> Reports
-    Yocto --> Reports
-    SWU --> Reports
+    Demo --> Reports
+    Vivado --> Reports

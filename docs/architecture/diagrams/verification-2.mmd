@@ -1,0 +1,6 @@
+flowchart LR
+    Gen["generate.py<br/>Python normalization"] --> Expected["replay_expected.bin"]
+    Capture["replay_capture.bin"] --> Rust["hft-plsim FeedModel"]
+    Capture --> RTL["tb_replay<br/>eth_ipv4_udp_rx + hft_pipeline"]
+    Rust -->|"must equal"| Expected
+    RTL -->|"must equal"| Expected

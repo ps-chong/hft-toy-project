@@ -18,10 +18,13 @@ generated XSA/SDT before board use.
 
 ## Record layout
 
-Both `MarketEvent` and `OrderIntent` are 64 bytes and aligned to a cache line.
-The first two bytes are the ABI version. Fields use explicit fixed-width
+`MarketEvent` (PL to R5), `OrderIntent` (R5 to A53) and `RiskConfigRecord`
+(A53 to R5) are 64 bytes and aligned to a cache line. The first two bytes are
+the ABI version (currently 2). Fields use explicit fixed-width little-endian
 integers; no C++, Rust, or VHDL packed record is copied directly from venue
-bytes. Generated static assertions verify size in C++ and Rust.
+bytes. Generated assertions pin every field offset in C++ (`offsetof`) and
+Rust (`offset_of!`), and the VHDL telemetry and replay testbenches encode the
+same layout.
 
 ```mermaid
 flowchart LR
@@ -37,15 +40,24 @@ flowchart LR
 
 ## Ring protocol
 
-1. Producer reads consumer index with acquire semantics.
-2. If `write - read == capacity`, it executes the ring-specific overflow policy.
-3. Producer writes one full record.
-4. Producer performs a device/cache barrier where required.
-5. Producer publishes the new write index with release semantics.
-6. Consumer observes write index with acquire semantics, reads the record, then
-   publishes its read index.
+The PL-to-R5 event ring is an LMAX Disruptor ring with one producer (the PL
+writer) and several consumers:
 
-There is exactly one producer and one consumer. Adding another is an
+1. The producer reads the sequence of the slowest gating consumer with
+   acquire semantics. If the next slot is still unread, it applies the
+   overflow policy (the PL counts it and latches its kill switch).
+2. The producer writes one full record into the slot, word by word.
+3. It performs a device/cache barrier where required.
+4. It publishes the slot's sequence with release semantics.
+5. Each gating consumer (the trading-task stages, in order) observes the
+   published sequence with acquire semantics, processes the slot, and
+   publishes its own sequence; the next stage gates on the previous one.
+6. The lossy journal reader never gates the producer. It copies a slot,
+   re-reads the sequence, and discards the copy if the producer has lapped it.
+
+Sequences are 32-bit and compared by wrap-safe distance, because the PL
+cannot take part in 64-bit exclusive accesses and aligned 32-bit stores are
+single-copy atomic on both sides of the interconnect. Adding a producer is an
 architecture change, not a locking exercise.
 
 ## ABI negotiation

@@ -1,0 +1,8 @@
+flowchart LR
+    Schemas["protocol/schema<br/>ipc, itch50, moldudp64,<br/>registers, telemetry_udp, ouch50"] --> Gen["protocol/generator/generate.py"]
+    Gen --> Cpp["C++ constants and<br/>layout static_asserts"]
+    Gen --> Rust["Rust constants, codecs,<br/>offset_of! asserts"]
+    Gen --> Vhdl["VHDL package<br/>(offsets, register map)"]
+    Gen --> Docs["docs/generated/registers.md"]
+    Gen --> Vectors["protocol/vectors<br/>golden binaries + replay session"]
+    Vectors --> Tests["tests in every layer"]

@@ -14,35 +14,37 @@ configured that way.
 ```mermaid
 sequenceDiagram
     participant Sim as ITCH simulator
-    participant UDP as Ethernet IPv4 UDP validator
-    participant Mold as MoldUDP64 decoder
-    participant Itch as ITCH decoder
-    participant Book as Bounded PL book
-    participant Ring as PL-to-R5 ring
-    participant Exec as R5 executor
-    Sim->>UDP: 10G Ethernet frame
+    participant UDP as eth_ipv4_udp_rx
+    participant Mold as moldudp64_rx
+    participant Itch as itch_decoder
+    participant Book as PL order book
+    participant Risk as risk_guard and kill latch
+    participant R5 as R5 Disruptor stages
+    Sim->>UDP: 10G Ethernet frame, 64 bits per beat
     UDP->>UDP: Check MAC, IPv4 checksum, fragment, lengths, IP, port
-    UDP->>Mold: Validated UDP payload
-    Mold->>Mold: Check session, sequence, count, lengths
-    alt sequence gap or malformed payload
-        Mold-->>Exec: Stale/fault notification
-        Exec->>Exec: Latch kill switch
-    else valid packet
-        loop each message
-            Mold->>Itch: Message bytes and implicit sequence
-            Itch->>Book: Normalized fixed-size event
-            Itch->>Ring: Normalized fixed-size event
-        end
-        Ring->>Exec: Doorbell after release publication
+    UDP->>Mold: UDP payload beats
+    Mold->>Mold: Duplicate / in order / gap against the expected sequence
+    alt malformed packet
+        Mold-->>Risk: malformed: latch kill, expected sequence unchanged
+    else gap
+        Mold-->>Risk: gap: latch kill
+        Mold->>Itch: messages, first event flagged feed_gap
+    else in order
+        Mold->>Itch: messages with implicit sequence numbers
     end
+    Itch->>Book: normalized event
+    Itch->>Risk: normalized event
+    Risk->>R5: adds only while armed, lifecycle events always
+    R5->>R5: feed_gap flag latches the R5 kill switch
 ```
 
 Supported ITCH messages are Add, Add with MPID, Execute, Execute with Price,
 Cancel, Delete, Replace, Trade, Cross Trade, System Event, and Stock Directory.
-The first hardware slice fully normalizes Add/Cancel/Delete and safely
-classifies the remaining types. Unsupported well-framed types increment a
-counter; truncation or a declared-length mismatch is fatal to synchronized
-trading.
+Add (`A`, `F`), Execute (`E`, `C`), Cancel, Delete, Replace and Trade are
+normalized into events, identically in the RTL and in the Rust software
+model; System Event, Stock Directory and Cross Trade are validated and
+skipped. Unknown well-framed types increment a counter; truncation or a
+declared-length mismatch is fatal to synchronized trading.
 
 ## Order-entry sequence
 
@@ -73,5 +75,6 @@ tick-to-intent domain.
 1. A feed gap immediately marks book state stale and kills new entries.
 2. Cancels and reconciliation can continue while new entries are killed.
 3. Recovery replays missing feed messages into a shadow state.
-4. A versioned snapshot is swapped only at an R5 executor safe point.
+4. A versioned configuration snapshot is picked up only at a safe point
+   between R5 pipeline batches.
 5. Re-arming is explicit; receiving a good packet never clears a kill latch.

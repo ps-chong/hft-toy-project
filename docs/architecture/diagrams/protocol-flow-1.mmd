@@ -1,23 +1,24 @@
 sequenceDiagram
     participant Sim as ITCH simulator
-    participant UDP as Ethernet IPv4 UDP validator
-    participant Mold as MoldUDP64 decoder
-    participant Itch as ITCH decoder
-    participant Book as Bounded PL book
-    participant Ring as PL-to-R5 ring
-    participant Exec as R5 executor
-    Sim->>UDP: 10G Ethernet frame
+    participant UDP as eth_ipv4_udp_rx
+    participant Mold as moldudp64_rx
+    participant Itch as itch_decoder
+    participant Book as PL order book
+    participant Risk as risk_guard and kill latch
+    participant R5 as R5 Disruptor stages
+    Sim->>UDP: 10G Ethernet frame, 64 bits per beat
     UDP->>UDP: Check MAC, IPv4 checksum, fragment, lengths, IP, port
-    UDP->>Mold: Validated UDP payload
-    Mold->>Mold: Check session, sequence, count, lengths
-    alt sequence gap or malformed payload
-        Mold-->>Exec: Stale/fault notification
-        Exec->>Exec: Latch kill switch
-    else valid packet
-        loop each message
-            Mold->>Itch: Message bytes and implicit sequence
-            Itch->>Book: Normalized fixed-size event
-            Itch->>Ring: Normalized fixed-size event
-        end
-        Ring->>Exec: Doorbell after release publication
+    UDP->>Mold: UDP payload beats
+    Mold->>Mold: Duplicate / in order / gap against the expected sequence
+    alt malformed packet
+        Mold-->>Risk: malformed: latch kill, expected sequence unchanged
+    else gap
+        Mold-->>Risk: gap: latch kill
+        Mold->>Itch: messages, first event flagged feed_gap
+    else in order
+        Mold->>Itch: messages with implicit sequence numbers
     end
+    Itch->>Book: normalized event
+    Itch->>Risk: normalized event
+    Risk->>R5: adds only while armed, lifecycle events always
+    R5->>R5: feed_gap flag latches the R5 kill switch

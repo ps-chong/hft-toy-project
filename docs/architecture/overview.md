@@ -13,7 +13,7 @@ flowchart LR
     Feed["MoldUDP64 and ITCH UDP feed"] --> Rx["SFP+ lane 0 and 10G MAC"]
     Rx --> PL["IPv4 UDP validation, sequencing, book, signal"]
     PL --> Tx["SFP+ lane 1 UDP telemetry"]
-    PL -->|Normalized event ring| R5["FreeRTOS cooperative executor"]
+    PL -->|Disruptor event ring| R5["FreeRTOS trading task<br/>Disruptor stage pipeline"]
     R5 -->|Approved intent over RPMsg| A53["Rust hftd actors"]
     A53 -->|SoupBinTCP and OUCH| Exchange["Exchange simulator"]
     A53 --> Journal["journald"]
@@ -52,7 +52,11 @@ counted and skipped.
 
 ## Verification status
 
-Open-source simulation and host models verify contracts and state transitions.
-Vivado synthesis is a local Windows operation. Actual SFP cage ordering,
-MAC/PCS/GTH reset, cache, interrupt, remoteproc, PCIe, boot, SWUpdate rollback,
-and latency behavior is deferred until a board is available.
+Open-source simulation and host models verify contracts and state transitions,
+and the Docker Compose demo runs the R5 firmware core, the A53 daemon, and a
+software model of the PL ingress together; the captured feed is replayed
+through the VHDL and must match the software model byte for byte. Vivado
+synthesis, with timing and clock-domain-crossing gates, is a local Windows
+operation. Actual SFP cage ordering, MAC/PCS/GTH reset, cache, interrupt,
+remoteproc, PCIe, boot, SWUpdate rollback, and latency behavior is deferred
+until a board is available.

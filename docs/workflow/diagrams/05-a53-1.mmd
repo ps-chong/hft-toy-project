@@ -1,0 +1,9 @@
+flowchart LR
+    Rpmsg["RPMsg owner task"] -->|publish| Ring["hft-disruptor ring"]
+    Ring -->|gating| Gateway["OUCH gateway"]
+    Ring -.->|lossy| Journal["PostgreSQL journal"]
+    Ring -.->|lossy| Analytics["analytics"]
+    Gateway <-->|SoupBinTCP| Exchange["exchange"]
+    Socket["control socket"] --> Control["control actor"]
+    Control -->|risk_config| Rpmsg
+    Control -->|trading permitted| Gateway

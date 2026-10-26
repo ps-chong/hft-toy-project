@@ -1,0 +1,9 @@
+flowchart TB
+    Edit["Edit rtl/*.vhd"] --> Vsg["VSG style check"]
+    Vsg --> Ghdl["VUnit on GHDL"]
+    Ghdl --> Nvc["VUnit on NVC (+ coverage)"]
+    Nvc --> Replay["tb_replay: RTL equals the software model"]
+    Replay --> Vivado["Vivado OOC synthesis"]
+    Vivado --> Gates{"WNS >= 0, WHS >= 0,<br/>no Critical CDC?"}
+    Gates -->|yes| Done["commit"]
+    Gates -->|no| Edit

@@ -1,0 +1,24 @@
+{
+  "signal": [
+    {"name": "axis_clk", "wave": "p................................."},
+    {"name": "MAC rx tvalid", "wave": "1............0...................."},
+    {"name": "MAC rx tlast", "wave": "0...........10...................."},
+    {},
+    {"name": "UDP payload valid", "wave": "0.....1.......0..................."},
+    {"name": "UDP payload first", "wave": "0.....10.........................."},
+    {"name": "Mold header checked", "wave": "0........10......................."},
+    {"name": "Mold message valid", "wave": "0.............10.................."},
+    {"name": "ITCH event", "wave": "0..............10................."},
+    {"name": "risk approved", "wave": "0...............10................"},
+    {"name": "R5 event port", "wave": "0................10..............."},
+    {},
+    {"name": "telemetry tx tvalid", "wave": "0.................1.............0."}
+  ],
+  "head": {
+    "text": "One add-order frame (100 bytes, 13 beats): first beat to R5 event port in 17 cycles (109 ns at 156.25 MHz)",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Cycle counts are checked by tb_myd_czu5ev_v2_hft_top 'wire to event port latency'"
+  }
+}

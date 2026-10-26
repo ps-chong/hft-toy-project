@@ -1,0 +1,6 @@
+flowchart LR
+    Clone["Windows checkout<br/>C:/Users/121679/hft-toy-project"] --> Sync["scripts/ci/sync-wsl.sh"]
+    Sync --> Mirror["WSL ext4 mirror<br/>~/hft-ci"]
+    Mirror --> Image["hft-host:dev container"]
+    Image --> Builds["C++, Rust, VHDL, Python, demo"]
+    Clone --> Vivado["Vivado 2026.1 (Windows)"]

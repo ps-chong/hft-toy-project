@@ -1,11 +1,15 @@
 flowchart TB
-    NetClk["156.25 MHz network clock"] --> Ingress["MAC and ingress parser"]
-    PsClk["PS AXI clock"] --> Registers["Control and status registers"]
-    PsClk --> Bram["Dual-port BRAM rings"]
-    Ingress --> CdcEvent["Asynchronous event FIFO"]
-    CdcEvent --> Bram
-    Registers --> CdcControl["Versioned control CDC"]
-    CdcControl --> Ingress
-    Reset["Synchronized reset per domain"] --> Ingress
-    Reset --> Registers
-    Reset --> Bram
+    subgraph PS["ps_clk (100 MHz, AXI-Lite)"]
+        Regs["hft_regs_axil<br/>shadow registers"]
+        Status["status registers"]
+    end
+    subgraph AXIS["axis_clk (156.25 MHz, MAC)"]
+        Config["committed config"]
+        Pipe["pipeline + kill latch"]
+        Counters["counters"]
+    end
+    Regs -->|"COMMIT: cdc_snapshot (219 bits)"| Config
+    Counters -->|"cdc_snapshot (292 bits)"| Status
+    Link["SFP link-up (async)"] -->|cdc_sync_bit| Pipe
+    Rst["resets"] -->|reset_sync per domain| PS
+    Rst -->|reset_sync per domain| AXIS

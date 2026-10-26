@@ -14,5 +14,9 @@
 Cross-cutting policies live in
 [coding standards](../coding-standards.md),
 [concurrency](../concurrency-model.md),
-[safety](../safety.md), and
+[safety](../safety.md),
+[latency](../latency.md), and
 [acceleration](../acceleration.md).
+
+Step-by-step guides (setup, contracts, each layer, the demo, CI, Yocto, and a
+packet walkthrough) are in [docs/workflow](../workflow/README.md).
