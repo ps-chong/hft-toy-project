@@ -9,9 +9,13 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_emmc_ab_layout_fits_four_gigabyte_device() -> None:
     wks = (ROOT / "yocto" / "wic" / "hft-myd-czu5ev-v2-ab.wks.in").read_text(encoding="utf-8")
-    sizes = [int(value) for value in re.findall(r"--size\s+(\d+)", wks)]
+    sizes = [int(value) for value in re.findall(r"--fixed-size\s+(\d+)M\b", wks)]
     assert sizes == [128, 128, 1536, 1536]
     assert sum(sizes) <= 3584
+    # wic scales --size by IMAGE_OVERHEAD_FACTOR and rejects line continuations.
+    parts = [line for line in wks.splitlines() if line.startswith("part ")]
+    assert len(parts) == 4
+    assert not any(re.search(r"\s--size\s", line) or line.endswith("\\") for line in parts)
     assert "--label hft_data" not in wks
 
 
