@@ -73,7 +73,16 @@ local_conf_header:
     INHERIT += "rm_work create-spdx"
     SPDX_INCLUDE_SOURCES = "1"
     BB_GENERATE_MIRROR_TARBALLS = "1"
-    RUST_VERSION = "1.97.1"
+    # hftd builds with meta-rust-bin's prebuilt toolchain, pinned to the
+    # workspace's rust-toolchain.toml. (Setting RUST_VERSION would instead
+    # retarget poky's own rust recipes and break their source checksums.)
+    PREFERRED_VERSION_rust-bin-cross-${TARGET_ARCH} ?= "1.97.1"
+    PREFERRED_VERSION_cargo-bin-cross-${TARGET_ARCH} ?= "1.97.1"
+    # meta-rust-bin derives S from an already-expanded WORKDIR, so the SPDX
+    # source collection (which re-runs do_unpack in another WORKDIR) would
+    # empty the real S before do_install. They are prebuilt binaries.
+    SPDX_INCLUDE_SOURCES:pn-rust-bin-cross-aarch64 = "0"
+    SPDX_INCLUDE_SOURCES:pn-cargo-bin-cross-aarch64 = "0"
     HFT_SRCREV ?= "${AUTOREV}"
     HFT_ENABLE_ONNX ?= "1"
     HFT_REPOSITORY ?= "git://github.com/ps-chong/hft-toy-project.git;protocol=https;branch=develop"

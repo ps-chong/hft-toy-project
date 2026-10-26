@@ -2,7 +2,9 @@ SUMMARY = "Rust control, OUCH gateway, and analytics services"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=996a749c2ba3c05ef939ef023101056d"
 
-inherit cargo systemd useradd
+# meta-rust-bin's cargo_bin (Rust 1.97.1): poky's cargo class carries Rust
+# 1.75, which cannot build this edition-2024 workspace.
+inherit cargo_bin systemd useradd
 
 SRC_URI = "${HFT_REPOSITORY} \
            file://hftd.service \
@@ -11,8 +13,17 @@ SRC_URI = "${HFT_REPOSITORY} \
 SRCREV = "${HFT_SRCREV}"
 S = "${WORKDIR}/git"
 
-CARGO_SRC_DIR = ""
-CARGO_BUILD_FLAGS += "--workspace --package hftd --package hftctl"
+# cargo downloads crates during compilation; Cargo.lock pins every version.
+do_compile[network] = "1"
+EXTRA_CARGO_FLAGS = "--locked --package hftd --package hftctl"
+
+# cc-rs compiles build-host C code (ring, pulled into sqlx's compile-time
+# macros) with HOST_CC and falls back to the target CC without it; cargo_bin
+# exports the native wrappers only as BUILD_CC/BUILD_CXX.
+do_compile:prepend() {
+    export HOST_CC="${WRAPPER_DIR}/cc-native-wrapper.sh"
+    export HOST_CXX="${WRAPPER_DIR}/cxx-native-wrapper.sh"
+}
 
 SYSTEMD_SERVICE:${PN} = "hftd.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
@@ -23,8 +34,8 @@ USERADD_PARAM:${PN} = "--system --home /data/hft --no-create-home \
 
 do_install() {
     install -d ${D}${bindir}
-    install -m 0755 ${B}/target/${RUST_TARGET_SYS}/release/hftd ${D}${bindir}/hftd
-    install -m 0755 ${B}/target/${RUST_TARGET_SYS}/release/hftctl ${D}${bindir}/hftctl
+    install -m 0755 ${CARGO_BINDIR}/hftd ${D}${bindir}/hftd
+    install -m 0755 ${CARGO_BINDIR}/hftctl ${D}${bindir}/hftctl
 
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/hftd.service \
