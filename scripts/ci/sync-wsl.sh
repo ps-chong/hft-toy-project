@@ -16,12 +16,17 @@ rsync -a --delete --chmod=D755,F644 \
   --exclude 'node_modules/' --exclude '__pycache__/' --exclude '.ruff_cache/' \
   --exclude '.pytest_cache/' --exclude '.mypy_cache/' --exclude '/yocto/build/' \
   --exclude '/yocto/downloads/' --exclude '/yocto/sstate-cache/' \
+  --exclude '/downloads/' --exclude '/sstate-cache/' \
   "${source_dir}/" "${target_dir}/"
 
 # Windows-side tools can leave CRLF in new files that Git has not normalized
-# yet; Linux shells and generators must see LF.
-{ grep -rlI $'\r' --exclude-dir=.git --exclude='*.ps1' --exclude='*.bat' \
-    --exclude='*.cmd' "${target_dir}" || true; } | xargs -r sed -i 's/\r$//'
+# yet; Linux shells and generators must see LF. Only files Git knows about
+# are touched: build trees in the mirror (CMake, Cargo, Yocto) are not ours.
+(cd "${target_dir}" &&
+  git ls-files -z --cached --others --exclude-standard -- \
+    ':!*.ps1' ':!*.bat' ':!*.cmd' |
+  xargs -0 -r grep -lIZ $'\r' 2>/dev/null |
+  xargs -0 -r sed -i 's/\r$//') || true
 git -C "${target_dir}" ls-files -s | awk '$1 == "100755" { print $4 }' |
   (cd "${target_dir}" && xargs -r chmod +x)
 find "${target_dir}/scripts" "${target_dir}/demo" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
