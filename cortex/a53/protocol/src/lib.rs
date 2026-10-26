@@ -1,11 +1,24 @@
-//! Endian-explicit wire and IPC contracts shared with PL and R5.
+//! Endian-explicit wire and IPC contracts shared with the PL and the R5.
+//!
+//! Every item is a plain value type or a pure codec: no I/O, no shared
+//! mutable state, and no `unsafe`, so all of it is `Send + Sync` and free of
+//! data races. IPC layouts and codecs are generated from
+//! `protocol/schema/ipc.yaml`; see [`generated`].
 
-use std::{array::TryFromSliceError, mem::size_of};
+pub mod codec;
+pub mod control;
+pub mod itch;
+pub mod mold;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub use itch::ItchMessage;
+pub use mold::{MoldMessages, MoldPacket};
+
+/// Constants, offsets, and IPC codecs generated from `protocol/schema`.
+#[allow(missing_docs, clippy::pedantic, reason = "generated from the schema")]
 pub mod generated {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -13,54 +26,127 @@ pub mod generated {
     ));
 }
 
+/// Width of an ITCH/OUCH stock symbol (space padded).
 pub const SYMBOL_LEN: usize = 8;
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum EventKind {
-    #[default]
-    None = 0,
-    Add = b'A',
-    Execute = b'E',
-    Cancel = b'X',
-    Delete = b'D',
-    Replace = b'U',
-    Trade = b'P',
+/// Errors for every wire and IPC decoder in this crate.
+#[derive(Debug, Error, Eq, PartialEq)]
+pub enum ProtocolError {
+    /// Fewer bytes than the header or declared length requires.
+    #[error("packet is truncated")]
+    Truncated,
+    /// A length field or frame length is inconsistent.
+    #[error("declared length is invalid")]
+    InvalidLength,
+    /// The MoldUDP64 message count does not match the payload.
+    #[error("message count does not match payload")]
+    MessageCount,
+    /// An enum byte or message type outside the supported set.
+    #[error("unsupported message type {0:#04x}")]
+    Unsupported(u8),
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum Side {
-    #[default]
-    Unknown = 0,
-    Buy = b'B',
-    Sell = b'S',
+macro_rules! wire_enum {
+    ($(#[$meta:meta])* $name:ident { $($(#[$variant_meta:meta])* $variant:ident = $value:expr),+ $(,)? }) => {
+        $(#[$meta])*
+        #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
+        #[repr(u8)]
+        pub enum $name {
+            $($(#[$variant_meta])* $variant = $value),+
+        }
+
+        impl TryFrom<u8> for $name {
+            type Error = ProtocolError;
+
+            fn try_from(value: u8) -> Result<Self, Self::Error> {
+                match value {
+                    $(v if v == $value => Ok(Self::$variant),)+
+                    other => Err(ProtocolError::Unsupported(other)),
+                }
+            }
+        }
+    };
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum OrderAction {
-    #[default]
-    None = 0,
-    Enter = b'O',
-    Replace = b'U',
-    Cancel = b'X',
+wire_enum! {
+    /// Normalized market event kind (ITCH message types after normalization).
+    EventKind {
+        /// No event.
+        #[default]
+        None = 0,
+        /// New displayed order (ITCH `A` and `F`).
+        Add = b'A',
+        /// Execution against a resting order (ITCH `E` and `C`).
+        Execute = b'E',
+        /// Partial cancel (ITCH `X`).
+        Cancel = b'X',
+        /// Full delete (ITCH `D`).
+        Delete = b'D',
+        /// Replace with a new reference (ITCH `U`).
+        Replace = b'U',
+        /// Non-displayed trade (ITCH `P`).
+        Trade = b'P',
+    }
 }
 
+wire_enum! {
+    /// Order side.
+    Side {
+        /// Not set.
+        #[default]
+        Unknown = 0,
+        /// Buy.
+        Buy = b'B',
+        /// Sell.
+        Sell = b'S',
+    }
+}
+
+wire_enum! {
+    /// Requested order action.
+    OrderAction {
+        /// Not set.
+        #[default]
+        None = 0,
+        /// Enter a new order.
+        Enter = b'O',
+        /// Replace an order.
+        Replace = b'U',
+        /// Cancel an order.
+        Cancel = b'X',
+    }
+}
+
+/// Normalized market event, PL/A53 -> R5 (`normalized_event` in ipc.yaml).
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[repr(C, align(64))]
 pub struct MarketEvent {
+    /// Must equal [`generated::ABI_VERSION`].
     pub abi_version: u16,
+    /// Normalized kind.
     pub kind: EventKind,
+    /// Side for adds and trades.
     pub side: Side,
+    /// Reserved flag bits.
     pub flags: u32,
+    /// MoldUDP64 sequence of the source message.
     pub sequence: u64,
+    /// ITCH timestamp (nanoseconds since midnight).
     pub timestamp_ns: u64,
+    /// Order reference (original reference for replaces).
     pub order_reference: u64,
+    /// Space-padded symbol.
     pub symbol: [u8; SYMBOL_LEN],
+    /// Price in ITCH 1/10000 units.
     pub price: u64,
+    /// Shares added, executed, or cancelled.
     pub quantity: u32,
-    pub reserved: [u8; 12],
+    /// ITCH stock locate code.
+    pub stock_locate: u16,
+    /// Reserved.
+    pub reserved: [u8; 2],
+    /// New reference for replaces.
+    pub new_order_reference: u64,
 }
 
 impl Default for MarketEvent {
@@ -73,66 +159,54 @@ impl Default for MarketEvent {
             sequence: 0,
             timestamp_ns: 0,
             order_reference: 0,
-            symbol: [0; SYMBOL_LEN],
+            symbol: [b' '; SYMBOL_LEN],
             price: 0,
             quantity: 0,
-            reserved: [0; 12],
+            stock_locate: 0,
+            reserved: [0; 2],
+            new_order_reference: 0,
         }
     }
 }
 
 impl MarketEvent {
-    #[must_use]
-    pub fn encode_ipc(&self) -> [u8; generated::IPC_RECORD_SIZE] {
-        let mut output = [0_u8; generated::IPC_RECORD_SIZE];
-        output[0..2].copy_from_slice(&self.abi_version.to_le_bytes());
-        output[2] = self.kind as u8;
-        output[3] = self.side as u8;
-        output[4..8].copy_from_slice(&self.flags.to_le_bytes());
-        output[8..16].copy_from_slice(&self.sequence.to_le_bytes());
-        output[16..24].copy_from_slice(&self.timestamp_ns.to_le_bytes());
-        output[24..32].copy_from_slice(&self.order_reference.to_le_bytes());
-        output[32..40].copy_from_slice(&self.symbol);
-        output[40..48].copy_from_slice(&self.price.to_le_bytes());
-        output[48..52].copy_from_slice(&self.quantity.to_le_bytes());
-        output[52..64].copy_from_slice(&self.reserved);
-        output
-    }
-
-    pub fn decode_ipc(input: &[u8]) -> Result<Self, ProtocolError> {
-        if input.len() != generated::IPC_RECORD_SIZE {
-            return Err(ProtocolError::InvalidLength);
-        }
-        Ok(Self {
-            abi_version: u16::from_le_bytes(input[0..2].try_into()?),
-            kind: decode_event_kind(input[2])?,
-            side: decode_side(input[3])?,
-            flags: u32::from_le_bytes(input[4..8].try_into()?),
-            sequence: u64::from_le_bytes(input[8..16].try_into()?),
-            timestamp_ns: u64::from_le_bytes(input[16..24].try_into()?),
-            order_reference: u64::from_le_bytes(input[24..32].try_into()?),
-            symbol: input[32..40].try_into()?,
-            price: u64::from_le_bytes(input[40..48].try_into()?),
-            quantity: u32::from_le_bytes(input[48..52].try_into()?),
-            reserved: input[52..64].try_into()?,
-        })
+    /// Parses one ITCH message into a normalized event.
+    pub fn parse_itch(message: &[u8], sequence: u64) -> Result<Self, ProtocolError> {
+        let parsed = ItchMessage::parse(message)?;
+        parsed
+            .to_event(sequence)
+            .ok_or(ProtocolError::Unsupported(parsed.message_type()))
     }
 }
 
+/// Approved order intent, R5 -> A53 (`order_intent` in ipc.yaml).
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[repr(C, align(64))]
 pub struct OrderIntent {
+    /// Must equal [`generated::ABI_VERSION`].
     pub abi_version: u16,
+    /// Requested action.
     pub action: OrderAction,
+    /// Side.
     pub side: Side,
+    /// R5-assigned user reference.
     pub user_ref: u32,
+    /// Sequence of the market event that triggered the decision.
     pub source_sequence: u64,
+    /// R5 clock at decision time.
     pub decision_timestamp_ns: u64,
+    /// Space-padded symbol.
     pub symbol: [u8; SYMBOL_LEN],
+    /// Limit price.
     pub price: u64,
+    /// Shares.
     pub quantity: u32,
+    /// Risk configuration revision that approved the intent.
     pub risk_revision: u32,
-    pub reserved: [u8; 16],
+    /// ITCH stock locate code.
+    pub stock_locate: u16,
+    /// Reserved.
+    pub reserved: [u8; 14],
 }
 
 impl Default for OrderIntent {
@@ -144,262 +218,159 @@ impl Default for OrderIntent {
             user_ref: 0,
             source_sequence: 0,
             decision_timestamp_ns: 0,
-            symbol: [0; SYMBOL_LEN],
+            symbol: [b' '; SYMBOL_LEN],
             price: 0,
             quantity: 0,
             risk_revision: 0,
-            reserved: [0; 16],
+            stock_locate: 0,
+            reserved: [0; 14],
         }
     }
 }
 
-impl OrderIntent {
-    #[must_use]
-    pub fn encode_ipc(&self) -> [u8; generated::IPC_RECORD_SIZE] {
-        let mut output = [0_u8; generated::IPC_RECORD_SIZE];
-        output[0..2].copy_from_slice(&self.abi_version.to_le_bytes());
-        output[2] = self.action as u8;
-        output[3] = self.side as u8;
-        output[4..8].copy_from_slice(&self.user_ref.to_le_bytes());
-        output[8..16].copy_from_slice(&self.source_sequence.to_le_bytes());
-        output[16..24].copy_from_slice(&self.decision_timestamp_ns.to_le_bytes());
-        output[24..32].copy_from_slice(&self.symbol);
-        output[32..40].copy_from_slice(&self.price.to_le_bytes());
-        output[40..44].copy_from_slice(&self.quantity.to_le_bytes());
-        output[44..48].copy_from_slice(&self.risk_revision.to_le_bytes());
-        output[48..64].copy_from_slice(&self.reserved);
-        output
-    }
+/// Control-plane snapshot, A53 -> R5 (`risk_config` in ipc.yaml).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[repr(C, align(64))]
+pub struct RiskConfigRecord {
+    /// Must equal [`generated::ABI_VERSION`].
+    pub abi_version: u16,
+    /// [`generated::ipc::risk_config_flags`] bits.
+    pub flags: u16,
+    /// Strictly increasing control revision.
+    pub revision: u32,
+    /// Maximum shares per order.
+    pub max_quantity: u32,
+    /// Orders allowed per rate window.
+    pub max_orders_per_window: u32,
+    /// Lowest accepted price.
+    pub price_floor: u64,
+    /// Highest accepted price.
+    pub price_ceiling: u64,
+    /// Rate window length.
+    pub rate_window_ns: u64,
+    /// Maximum concurrently open orders.
+    pub max_open_orders: u32,
+    /// Active R5 strategy (variant index).
+    pub strategy_id: u8,
+    /// Valid entries in `allowed_locates`; 0 allows every locate.
+    pub allowed_locate_count: u8,
+    /// Reserved.
+    pub reserved: [u8; 2],
+    /// Allowed stock locate codes.
+    pub allowed_locates: [u16; 8],
+}
 
-    pub fn decode_ipc(input: &[u8]) -> Result<Self, ProtocolError> {
-        if input.len() != generated::IPC_RECORD_SIZE {
-            return Err(ProtocolError::InvalidLength);
+impl Default for RiskConfigRecord {
+    fn default() -> Self {
+        Self {
+            abi_version: generated::ABI_VERSION,
+            flags: 0,
+            revision: 0,
+            max_quantity: 0,
+            max_orders_per_window: 0,
+            price_floor: 0,
+            price_ceiling: 0,
+            rate_window_ns: 0,
+            max_open_orders: 0,
+            strategy_id: 0,
+            allowed_locate_count: 0,
+            reserved: [0; 2],
+            allowed_locates: [0; 8],
         }
-        Ok(Self {
-            abi_version: u16::from_le_bytes(input[0..2].try_into()?),
-            action: decode_order_action(input[2])?,
-            side: decode_side(input[3])?,
-            user_ref: u32::from_le_bytes(input[4..8].try_into()?),
-            source_sequence: u64::from_le_bytes(input[8..16].try_into()?),
-            decision_timestamp_ns: u64::from_le_bytes(input[16..24].try_into()?),
-            symbol: input[24..32].try_into()?,
-            price: u64::from_le_bytes(input[32..40].try_into()?),
-            quantity: u32::from_le_bytes(input[40..44].try_into()?),
-            risk_revision: u32::from_le_bytes(input[44..48].try_into()?),
-            reserved: input[48..64].try_into()?,
-        })
     }
 }
 
-const _: () = assert!(size_of::<MarketEvent>() == generated::IPC_RECORD_SIZE);
-const _: () = assert!(size_of::<OrderIntent>() == generated::IPC_RECORD_SIZE);
+// Helpers used by the generated codecs. OFFSET and N are compile-time
+// constants checked against the record size, so the `get` calls below always
+// succeed; the fallbacks exist only to avoid panicking code paths.
 
-#[derive(Debug, Error, Eq, PartialEq)]
-pub enum ProtocolError {
-    #[error("packet is truncated")]
-    Truncated,
-    #[error("declared length is invalid")]
-    InvalidLength,
-    #[error("message count does not match payload")]
-    MessageCount,
-    #[error("unsupported message type {0:#04x}")]
-    Unsupported(u8),
-    #[error("numeric field conversion failed")]
-    Numeric,
+pub(crate) const fn assert_in_record(offset: usize, size: usize) {
+    assert!(offset + size <= generated::IPC_RECORD_SIZE);
 }
 
-impl From<TryFromSliceError> for ProtocolError {
-    fn from(_: TryFromSliceError) -> Self {
-        Self::Numeric
+pub(crate) fn put<const OFFSET: usize, const N: usize>(
+    out: &mut [u8; generated::IPC_RECORD_SIZE],
+    bytes: [u8; N],
+) {
+    const { assert_in_record(OFFSET, N) };
+    if let Some(slot) = out.get_mut(OFFSET..).and_then(<[u8]>::first_chunk_mut::<N>) {
+        *slot = bytes;
     }
 }
 
-fn decode_event_kind(value: u8) -> Result<EventKind, ProtocolError> {
-    match value {
-        0 => Ok(EventKind::None),
-        b'A' => Ok(EventKind::Add),
-        b'E' => Ok(EventKind::Execute),
-        b'X' => Ok(EventKind::Cancel),
-        b'D' => Ok(EventKind::Delete),
-        b'U' => Ok(EventKind::Replace),
-        b'P' => Ok(EventKind::Trade),
-        other => Err(ProtocolError::Unsupported(other)),
-    }
+pub(crate) fn take<const OFFSET: usize, const N: usize>(
+    input: &[u8; generated::IPC_RECORD_SIZE],
+) -> [u8; N] {
+    const { assert_in_record(OFFSET, N) };
+    input
+        .get(OFFSET..)
+        .and_then(<[u8]>::first_chunk::<N>)
+        .copied()
+        .unwrap_or([0; N])
 }
 
-fn decode_side(value: u8) -> Result<Side, ProtocolError> {
-    match value {
-        0 => Ok(Side::Unknown),
-        b'B' => Ok(Side::Buy),
-        b'S' => Ok(Side::Sell),
-        other => Err(ProtocolError::Unsupported(other)),
+pub(crate) fn u16_array_le(values: [u16; 8]) -> [u8; 16] {
+    let mut out = [0_u8; 16];
+    for (chunk, value) in out.chunks_exact_mut(2).zip(values) {
+        chunk.copy_from_slice(&value.to_le_bytes());
     }
+    out
 }
 
-fn decode_order_action(value: u8) -> Result<OrderAction, ProtocolError> {
-    match value {
-        0 => Ok(OrderAction::None),
-        b'O' => Ok(OrderAction::Enter),
-        b'U' => Ok(OrderAction::Replace),
-        b'X' => Ok(OrderAction::Cancel),
-        other => Err(ProtocolError::Unsupported(other)),
+pub(crate) fn u16_array_from_le(bytes: [u8; 16]) -> [u16; 8] {
+    let mut out = [0_u16; 8];
+    for (value, chunk) in out.iter_mut().zip(bytes.as_chunks::<2>().0) {
+        *value = u16::from_le_bytes(*chunk);
     }
+    out
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct MoldPacket<'a> {
-    pub session: [u8; 10],
-    pub sequence: u64,
-    pub messages: Vec<&'a [u8]>,
-}
-
-impl<'a> MoldPacket<'a> {
-    pub fn parse(packet: &'a [u8]) -> Result<Self, ProtocolError> {
-        if packet.len() < generated::MOLDUDP64_HEADER_SIZE {
-            return Err(ProtocolError::Truncated);
-        }
-        let session = packet[0..10].try_into()?;
-        let sequence = u64::from_be_bytes(packet[10..18].try_into()?);
-        let count = usize::from(u16::from_be_bytes(packet[18..20].try_into()?));
-        if count == usize::from(u16::MAX) {
-            return Ok(Self {
-                session,
-                sequence,
-                messages: Vec::new(),
-            });
-        }
-
-        let mut messages = Vec::with_capacity(count);
-        let mut offset = generated::MOLDUDP64_HEADER_SIZE;
-        for _ in 0..count {
-            let length_end = offset.checked_add(2).ok_or(ProtocolError::InvalidLength)?;
-            let length_bytes = packet
-                .get(offset..length_end)
-                .ok_or(ProtocolError::Truncated)?;
-            let length = usize::from(u16::from_be_bytes(length_bytes.try_into()?));
-            if length == 0 {
-                return Err(ProtocolError::InvalidLength);
-            }
-            offset = length_end;
-            let message_end = offset
-                .checked_add(length)
-                .ok_or(ProtocolError::InvalidLength)?;
-            messages.push(
-                packet
-                    .get(offset..message_end)
-                    .ok_or(ProtocolError::Truncated)?,
-            );
-            offset = message_end;
-        }
-        if offset != packet.len() {
-            return Err(ProtocolError::MessageCount);
-        }
-        Ok(Self {
-            session,
-            sequence,
-            messages,
-        })
-    }
-
-    #[must_use]
-    pub fn is_heartbeat(&self) -> bool {
-        self.messages.is_empty()
-    }
-}
-
-impl MarketEvent {
-    pub fn parse_itch(message: &[u8], sequence: u64) -> Result<Self, ProtocolError> {
-        let kind = *message.first().ok_or(ProtocolError::Truncated)?;
-        let timestamp = read_u48(message.get(5..11).ok_or(ProtocolError::Truncated)?)?;
-        let mut event = Self {
-            sequence,
-            timestamp_ns: timestamp,
-            ..Self::default()
-        };
-
-        match kind {
-            b'A' | b'F' => {
-                let required = if kind == b'A' { 36 } else { 40 };
-                if message.len() != required {
-                    return Err(ProtocolError::InvalidLength);
-                }
-                event.kind = EventKind::Add;
-                event.order_reference = u64::from_be_bytes(message[11..19].try_into()?);
-                event.side = match message[19] {
-                    b'B' => Side::Buy,
-                    b'S' => Side::Sell,
-                    value => return Err(ProtocolError::Unsupported(value)),
-                };
-                event.quantity = u32::from_be_bytes(message[20..24].try_into()?);
-                event.symbol.copy_from_slice(&message[24..32]);
-                event.price = u64::from(u32::from_be_bytes(message[32..36].try_into()?));
-            }
-            b'X' => {
-                if message.len() != 23 {
-                    return Err(ProtocolError::InvalidLength);
-                }
-                event.kind = EventKind::Cancel;
-                event.order_reference = u64::from_be_bytes(message[11..19].try_into()?);
-                event.quantity = u32::from_be_bytes(message[19..23].try_into()?);
-            }
-            b'D' => {
-                if message.len() != 19 {
-                    return Err(ProtocolError::InvalidLength);
-                }
-                event.kind = EventKind::Delete;
-                event.order_reference = u64::from_be_bytes(message[11..19].try_into()?);
-            }
-            value => return Err(ProtocolError::Unsupported(value)),
-        }
-        Ok(event)
-    }
-}
-
-fn read_u48(bytes: &[u8]) -> Result<u64, ProtocolError> {
-    if bytes.len() != 6 {
-        return Err(ProtocolError::InvalidLength);
-    }
-    Ok(bytes
-        .iter()
-        .fold(0_u64, |value, byte| (value << 8) | u64::from(*byte)))
-}
-
+/// One SoupBinTCP frame: a type byte and its payload.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SoupPacket {
+    /// SoupBinTCP packet type (`L`, `A`, `U`, `S`, `H`, ...).
     pub packet_type: u8,
+    /// Payload after the type byte.
     pub payload: Bytes,
 }
 
 impl SoupPacket {
+    /// Encodes the length-prefixed frame.
     pub fn encode(&self) -> Result<Bytes, ProtocolError> {
-        let body_len = self
-            .payload
-            .len()
-            .checked_add(1)
-            .ok_or(ProtocolError::InvalidLength)?;
-        let body_len = u16::try_from(body_len).map_err(|_| ProtocolError::InvalidLength)?;
-        let mut output = BytesMut::with_capacity(usize::from(body_len) + 2);
-        output.put_u16(body_len);
-        output.put_u8(self.packet_type);
-        output.extend_from_slice(&self.payload);
+        let mut output = BytesMut::new();
+        self.encode_into(&mut output)?;
         Ok(output.freeze())
     }
 
+    /// Appends the length-prefixed frame to `output`.
+    pub fn encode_into(&self, output: &mut BytesMut) -> Result<(), ProtocolError> {
+        let body_len =
+            u16::try_from(self.payload.len() + 1).map_err(|_| ProtocolError::InvalidLength)?;
+        output.reserve(usize::from(body_len) + 2);
+        output.put_u16(body_len);
+        output.put_u8(self.packet_type);
+        output.extend_from_slice(&self.payload);
+        Ok(())
+    }
+
+    /// Decodes exactly one frame (length prefix included).
     pub fn decode(frame: &[u8]) -> Result<Self, ProtocolError> {
-        if frame.len() < 3 {
-            return Err(ProtocolError::Truncated);
-        }
-        let body_len = usize::from(u16::from_be_bytes(frame[0..2].try_into()?));
-        if body_len == 0 || frame.len() != body_len + 2 {
+        let (length, body) = frame
+            .split_first_chunk::<2>()
+            .ok_or(ProtocolError::Truncated)?;
+        let body_len = usize::from(u16::from_be_bytes(*length));
+        if body_len == 0 || body.len() != body_len {
             return Err(ProtocolError::InvalidLength);
         }
+        let (&packet_type, payload) = body.split_first().ok_or(ProtocolError::Truncated)?;
         Ok(Self {
-            packet_type: frame[2],
-            payload: Bytes::copy_from_slice(&frame[3..]),
+            packet_type,
+            payload: Bytes::copy_from_slice(payload),
         })
     }
 }
 
+/// Encodes the simulator's subset of an OUCH 5.0 Enter Order message.
 pub fn encode_enter_order(intent: &OrderIntent) -> Result<Bytes, ProtocolError> {
     if intent.action != OrderAction::Enter {
         return Err(ProtocolError::Unsupported(intent.action as u8));
@@ -416,38 +387,101 @@ pub fn encode_enter_order(intent: &OrderIntent) -> Result<Bytes, ProtocolError> 
 }
 
 #[cfg(test)]
+#[allow(clippy::indexing_slicing, reason = "tests index fixed fixtures")]
 mod tests {
     use proptest::prelude::*;
 
     use super::*;
 
     const ADD_VECTOR: &[u8] = include_bytes!("../../../../protocol/vectors/mold_add_order.bin");
+    const MIXED_VECTOR: &[u8] = include_bytes!("../../../../protocol/vectors/mold_mixed.bin");
     const TRUNCATED_VECTOR: &[u8] =
         include_bytes!("../../../../protocol/vectors/mold_truncated.bin");
+    const EVENT_VECTOR: &[u8] =
+        include_bytes!("../../../../protocol/vectors/ipc_normalized_event.bin");
+    const INTENT_VECTOR: &[u8] =
+        include_bytes!("../../../../protocol/vectors/ipc_order_intent.bin");
+    const CONFIG_VECTOR: &[u8] = include_bytes!("../../../../protocol/vectors/ipc_risk_config.bin");
+
+    fn ok<T, E: std::fmt::Display>(result: Result<T, E>) -> T {
+        result.unwrap_or_else(|error| panic!("{error}"))
+    }
 
     #[test]
     fn parses_shared_add_vector() {
-        let packet = MoldPacket::parse(ADD_VECTOR);
-        assert!(packet.is_ok());
-        let packet = packet.unwrap_or_else(|error| panic!("{error}"));
+        let packet = ok(MoldPacket::parse(ADD_VECTOR));
         assert_eq!(packet.sequence, 1);
-        assert_eq!(packet.messages.len(), 1);
-
-        let event = MarketEvent::parse_itch(packet.messages[0], packet.sequence);
-        assert!(event.is_ok());
-        let event = event.unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(packet.message_count(), 1);
+        let message = packet.messages().next().unwrap_or_default();
+        let event = ok(MarketEvent::parse_itch(message, packet.sequence));
         assert_eq!(event.kind, EventKind::Add);
         assert_eq!(event.side, Side::Buy);
         assert_eq!(event.quantity, 100);
         assert_eq!(event.price, 1_234_500);
+        assert_eq!(event.stock_locate, 1);
         assert_eq!(&event.symbol, b"ACME    ");
+    }
+
+    #[test]
+    fn normalizes_every_mixed_vector_message() {
+        let packet = ok(MoldPacket::parse(MIXED_VECTOR));
+        let kinds: Vec<EventKind> = packet
+            .messages()
+            .zip(packet.sequence..)
+            .map(|(message, sequence)| ok(MarketEvent::parse_itch(message, sequence)).kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                EventKind::Add,
+                EventKind::Add,
+                EventKind::Execute,
+                EventKind::Execute,
+                EventKind::Cancel,
+                EventKind::Replace,
+                EventKind::Delete,
+            ]
+        );
     }
 
     #[test]
     fn rejects_truncated_shared_vector() {
         assert_eq!(
-            MoldPacket::parse(TRUNCATED_VECTOR),
-            Err(ProtocolError::Truncated)
+            MoldPacket::parse(TRUNCATED_VECTOR).err(),
+            Some(ProtocolError::Truncated)
+        );
+    }
+
+    #[test]
+    fn decodes_generated_ipc_images() {
+        let event = ok(MarketEvent::decode_ipc(EVENT_VECTOR));
+        assert_eq!(event.abi_version, generated::ABI_VERSION);
+        assert_eq!(event.order_reference, 0x0102_0304_0506_0708);
+        assert_eq!(event.encode_ipc().as_slice(), EVENT_VECTOR);
+
+        let intent = ok(OrderIntent::decode_ipc(INTENT_VECTOR));
+        assert_eq!(intent.side, Side::Sell);
+        assert_eq!(intent.user_ref, 7);
+        assert_eq!(intent.encode_ipc().as_slice(), INTENT_VECTOR);
+
+        let config = ok(RiskConfigRecord::decode_ipc(CONFIG_VECTOR));
+        assert_eq!(config.revision, 4);
+        assert_eq!(config.allowed_locates[1], 7);
+        assert_eq!(config.encode_ipc().as_slice(), CONFIG_VECTOR);
+    }
+
+    #[test]
+    fn rejects_unknown_enum_bytes_in_ipc_images() {
+        let mut image = [0_u8; generated::IPC_RECORD_SIZE];
+        image.copy_from_slice(EVENT_VECTOR);
+        image[generated::ipc::normalized_event::KIND] = b'?';
+        assert_eq!(
+            MarketEvent::decode_ipc(&image),
+            Err(ProtocolError::Unsupported(b'?'))
+        );
+        assert_eq!(
+            MarketEvent::decode_ipc(&image[..10]),
+            Err(ProtocolError::InvalidLength)
         );
     }
 
@@ -457,11 +491,8 @@ mod tests {
             packet_type: b'U',
             payload: Bytes::from_static(b"order"),
         };
-        let encoded = packet.encode().unwrap_or_else(|error| panic!("{error}"));
-        assert_eq!(
-            SoupPacket::decode(&encoded).unwrap_or_else(|error| panic!("{error}")),
-            packet
-        );
+        let encoded = ok(packet.encode());
+        assert_eq!(ok(SoupPacket::decode(&encoded)), packet);
     }
 
     proptest! {
@@ -474,16 +505,19 @@ mod tests {
                 packet_type,
                 payload: Bytes::from(payload),
             };
-            let encoded = packet.encode();
-            prop_assert!(encoded.is_ok());
-            let decoded = encoded
-                .and_then(|frame| SoupPacket::decode(&frame));
+            let decoded = packet.encode().and_then(|frame| SoupPacket::decode(&frame));
             prop_assert_eq!(decoded, Ok(packet));
         }
 
         #[test]
-        fn arbitrary_mold_bytes_never_panic(payload in proptest::collection::vec(any::<u8>(), 0..2048)) {
-            let _result = MoldPacket::parse(&payload);
+        fn arbitrary_bytes_never_panic(payload in proptest::collection::vec(any::<u8>(), 0..2048)) {
+            if let Ok(packet) = MoldPacket::parse(&payload) {
+                for message in packet.messages() {
+                    let _ = ItchMessage::parse(message);
+                }
+            }
+            let _ = ItchMessage::parse(&payload);
+            let _ = MarketEvent::decode_ipc(&payload);
         }
     }
 }

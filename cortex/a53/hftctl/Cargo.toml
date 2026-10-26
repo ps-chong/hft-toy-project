@@ -1,5 +1,6 @@
 [package]
 name = "hftctl"
+description = "Operator CLI for the hftd control socket"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,6 +10,7 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
+hft-protocol = { path = "../protocol", version = "0.1.0" }
 serde_json.workspace = true
 tokio.workspace = true
 

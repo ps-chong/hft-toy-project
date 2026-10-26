@@ -1,5 +1,6 @@
 [package]
 name = "hftd"
+description = "A53 trading daemon: RPMsg, Disruptor fan-out, OUCH gateway, journal, control"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,12 +9,13 @@ repository.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-async-trait.workspace = true
 hft-analytics = { path = "../analytics", version = "0.1.0" }
+hft-disruptor = { path = "../disruptor", version = "0.1.0" }
 hft-ouch = { path = "../ouch", version = "0.1.0" }
 hft-protocol = { path = "../protocol", version = "0.1.0" }
 hft-rpmsg = { path = "../rpmsg", version = "0.1.0" }
 hft-storage = { path = "../storage", version = "0.1.0" }
+rustix = { version = "1.0", default-features = false, features = ["std", "time"] }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -25,7 +27,9 @@ tracing-subscriber.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-mockall.workspace = true
+bytes.workspace = true
+futures-util.workspace = true
+tempfile = "3"
 
 [lints]
 workspace = true

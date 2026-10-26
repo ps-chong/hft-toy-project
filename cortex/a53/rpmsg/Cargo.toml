@@ -1,5 +1,6 @@
 [package]
 name = "hft-rpmsg"
+description = "Cancel-safe RPMsg endpoints between the A53 and the R5"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,13 +8,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-async-trait.workspace = true
+futures-util.workspace = true
 hft-protocol = { path = "../protocol", version = "0.1.0" }
+libc.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-
-[dev-dependencies]
-mockall.workspace = true
+tokio-util.workspace = true
 
 [lints]
 workspace = true

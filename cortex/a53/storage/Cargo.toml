@@ -1,5 +1,6 @@
 [package]
 name = "hft-storage"
+description = "Batched PostgreSQL journal outside the latency-critical path"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,7 +8,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-async-trait.workspace = true
 hft-analytics = { path = "../analytics", version = "0.1.0" }
 hft-protocol = { path = "../protocol", version = "0.1.0" }
 serde.workspace = true
@@ -16,7 +16,6 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-mockall.workspace = true
 tokio.workspace = true
 
 [lints]

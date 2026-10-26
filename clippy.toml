@@ -1,0 +1,4 @@
+# Project protocol names that doc_markdown would otherwise ask to backtick.
+doc-valid-idents = ["MoldUDP64", "SoupBinTCP", "RPMsg", "TotalView", "PostgreSQL", "FreeRTOS", "UltraScale", ".."]
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

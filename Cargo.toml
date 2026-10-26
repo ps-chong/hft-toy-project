@@ -2,9 +2,11 @@
 resolver = "3"
 members = [
   "cortex/a53/analytics",
+  "cortex/a53/disruptor",
   "cortex/a53/hftctl",
   "cortex/a53/hftd",
   "cortex/a53/ouch",
+  "cortex/a53/plsim",
   "cortex/a53/protocol",
   "cortex/a53/rpmsg",
   "cortex/a53/storage"
@@ -20,18 +22,19 @@ repository = "https://github.com/ps-chong/hft-toy-project"
 
 [workspace.dependencies]
 anyhow = "1.0"
-async-trait = "0.1"
 bytes = "1.10"
 clap = { version = "4.5", features = ["derive"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hdrhistogram = "7.5"
-mockall = "0.14"
+libc = "0.2"
+loom = "0.7"
 proptest = "1.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "migrate", "macros", "uuid"] }
 thiserror = "2.0"
 tokio = { version = "1.47", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "test-util", "time"] }
-tokio-util = { version = "0.7", features = ["rt"] }
+tokio-util = { version = "0.7", features = ["codec", "rt"] }
 tracing = "0.1"
 tracing-journald = "0.3"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
@@ -40,6 +43,8 @@ uuid = { version = "1.18", features = ["serde", "v4"] }
 [workspace.lints.rust]
 unsafe_code = "forbid"
 unused_must_use = "deny"
+missing_docs = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(loom)"] }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }

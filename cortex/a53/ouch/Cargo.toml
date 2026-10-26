@@ -1,5 +1,6 @@
 [package]
 name = "hft-ouch"
+description = "SoupBinTCP session and OUCH 5.0 order-entry gateway"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,14 +8,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-async-trait.workspace = true
 bytes.workspace = true
+futures-util.workspace = true
 hft-protocol = { path = "../protocol", version = "0.1.0" }
 thiserror.workspace = true
 tokio.workspace = true
-
-[dev-dependencies]
-mockall.workspace = true
+tokio-util.workspace = true
 
 [lints]
 workspace = true

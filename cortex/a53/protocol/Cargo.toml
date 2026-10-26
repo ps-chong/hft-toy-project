@@ -1,5 +1,6 @@
 [package]
 name = "hft-protocol"
+description = "Wire, IPC, and control-plane contracts shared with the PL and R5"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,9 +11,22 @@ repository.workspace = true
 bytes.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+tokio-util.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+serde_json.workspace = true
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+missing_docs = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(loom)"] }
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+missing_errors_doc = "allow"
