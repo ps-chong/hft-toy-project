@@ -26,9 +26,12 @@ do_compile() {
         $(pkg-config --libs libonnxruntime)
 }
 
-# Run the target binary against the recipe sysroot with qemu-user.
+# Run the target binary with qemu-user against the recipe sysroot. (The
+# binary lives in ${B}, not inside the sysroot, so qemu_run_binary, which
+# prefixes the rootfs path to the binary, does not fit.)
 do_smoke_test() {
-    ${@qemu_run_binary(d, '${RECIPE_SYSROOT}', '${B}/hft-onnx-smoke')} ${S}/smoke.onnx
+    ${@qemu_wrapper_cmdline(d, '${RECIPE_SYSROOT}', ['${RECIPE_SYSROOT}${libdir}', '${RECIPE_SYSROOT}${base_libdir}'])} \
+        ${B}/hft-onnx-smoke ${S}/smoke.onnx
 }
 do_smoke_test[depends] += "qemu-native:do_populate_sysroot"
 addtask smoke_test after do_compile before do_install
