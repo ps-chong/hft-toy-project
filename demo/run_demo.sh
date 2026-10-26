@@ -60,7 +60,7 @@ in_host() {
     -v hft-ci-cargo-registry:/root/.cargo/registry -v hft-ci-cargo-git:/root/.cargo/git \
     -e HFT_REPLAY_CAPTURE -e HFT_REPLAY_EXPECTED -e HFT_REPLAY_OUTPUT \
     -w /workspace hft-host:dev bash -c "$1"'; status=$?
-      chown -R '"${owner}"' build target demo/out vunit_out 2>/dev/null; exit $status'
+      chown -R '"${owner}"' build target demo/out vunit_out 2>/dev/null || true; exit $status'
 }
 
 ctl() { "${compose[@]}" exec -T hftd target/release/hftctl --socket /run/hft/control.sock "$@"; }
