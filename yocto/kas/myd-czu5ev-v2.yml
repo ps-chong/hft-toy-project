@@ -77,6 +77,8 @@ local_conf_header:
     HFT_SRCREV ?= "${AUTOREV}"
     HFT_ENABLE_ONNX ?= "1"
     HFT_REPOSITORY ?= "git://github.com/ps-chong/hft-toy-project.git;protocol=https;branch=develop"
+  # TOPDIR is <checkout>/build (the kas build directory). Downloads and
+  # sstate live under yocto/, which yocto.yml caches and .gitignore ignores.
   hft-downloads: |
-    DL_DIR = "${TOPDIR}/../downloads"
-    SSTATE_DIR = "${TOPDIR}/../sstate-cache"
+    DL_DIR = "${TOPDIR}/../yocto/downloads"
+    SSTATE_DIR = "${TOPDIR}/../yocto/sstate-cache"
