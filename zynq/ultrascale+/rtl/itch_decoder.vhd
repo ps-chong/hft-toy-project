@@ -1,3 +1,17 @@
+-- ITCH 5.0 decoder for complete, lane-0 aligned messages from moldudp64_rx.
+--
+-- Field extraction uses the generated offsets in hft_protocol_pkg with
+-- constant indices, so it synthesizes to wiring. Normalization matches the
+-- A53 software model (hft-protocol ItchMessage::to_event) field for field:
+-- F (add with MPID) becomes an add, C (executed with price) becomes an
+-- execute carrying the execution price, U carries both references, and P
+-- becomes a trade. The first normalized event after a MoldUDP64 gap carries
+-- the feed_gap flag, so the R5 can fail closed even when it is fed by
+-- software.
+--
+-- Latency: one cycle. Throughput: one message per cycle (at most one arrives
+-- per beat).
+
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
@@ -11,16 +25,12 @@ entity itch_decoder is
     clk : in    std_logic;
     rst : in    std_logic;
 
-    s_data     : in    byte_t;
-    s_valid    : in    std_logic;
-    s_sop      : in    std_logic;
-    s_eop      : in    std_logic;
-    s_sequence : in    unsigned(63 downto 0);
-    s_ready    : out   std_logic;
+    s_message : in    itch_message_t;
+    s_valid   : in    std_logic;
+    s_gap     : in    std_logic;
 
     event_out   : out   market_event_t;
     event_valid : out   std_logic;
-    event_ready : in    std_logic;
 
     malformed_pulse : out   std_logic;
     unknown_pulse   : out   std_logic
@@ -29,9 +39,13 @@ end entity itch_decoder;
 
 architecture rtl of itch_decoder is
 
-  signal event_r       : market_event_t         := MARKET_EVENT_RESET;
-  signal event_valid_r : std_logic              := '0';
-  signal byte_index    : natural range 0 to 255 := 0;
+  constant execution_price_offset : natural := ITCH_ORDER_EXECUTED_WITH_PRICE_EXECUTION_PRICE_OFFSET;
+
+  signal event_r     : market_event_t := market_event_reset;
+  signal valid_r     : std_logic      := '0';
+  signal malformed_r : std_logic      := '0';
+  signal unknown_r   : std_logic      := '0';
+  signal gap_pending : std_logic      := '0';
 
   function expected_length (
     kind : byte_t
@@ -42,47 +56,47 @@ architecture rtl of itch_decoder is
 
       when ITCH_SYSTEM_EVENT =>
 
-        return 12;
+        return ITCH_SYSTEM_EVENT_LENGTH;
 
       when ITCH_STOCK_DIRECTORY =>
 
-        return 39;
+        return ITCH_STOCK_DIRECTORY_LENGTH;
 
       when ITCH_ADD_ORDER =>
 
-        return 36;
+        return ITCH_ADD_ORDER_LENGTH;
 
       when ITCH_ADD_ORDER_MPID =>
 
-        return 40;
+        return ITCH_ADD_ORDER_MPID_LENGTH;
 
       when ITCH_ORDER_EXECUTED =>
 
-        return 31;
+        return ITCH_ORDER_EXECUTED_LENGTH;
 
       when ITCH_ORDER_EXECUTED_WITH_PRICE =>
 
-        return 36;
+        return ITCH_ORDER_EXECUTED_WITH_PRICE_LENGTH;
 
       when ITCH_ORDER_CANCEL =>
 
-        return 23;
+        return ITCH_ORDER_CANCEL_LENGTH;
 
       when ITCH_ORDER_DELETE =>
 
-        return 19;
+        return ITCH_ORDER_DELETE_LENGTH;
 
       when ITCH_ORDER_REPLACE =>
 
-        return 35;
+        return ITCH_ORDER_REPLACE_LENGTH;
 
       when ITCH_TRADE =>
 
-        return 44;
+        return ITCH_TRADE_LENGTH;
 
       when ITCH_CROSS_TRADE =>
 
-        return 40;
+        return ITCH_CROSS_TRADE_LENGTH;
 
       when others =>
 
@@ -92,94 +106,150 @@ architecture rtl of itch_decoder is
 
   end function expected_length;
 
+  function valid_side (
+    side : byte_t
+  ) return boolean is
+  begin
+
+    return (side = side_buy) or (side = side_sell);
+
+  end function valid_side;
+
 begin
 
-  event_out   <= event_r;
-  event_valid <= event_valid_r;
-  s_ready     <= '1' when event_valid_r = '0' or event_ready = '1' else
-                 '0';
+  event_out       <= event_r;
+  event_valid     <= valid_r;
+  malformed_pulse <= malformed_r;
+  unknown_pulse   <= unknown_r;
 
-  process (clk) is
+  decode : process (clk) is
 
-    variable final_length : natural;
+    variable bytes   : byte_array_t(0 to itch_buffer_bytes - 1);
+    variable kind    : byte_t;
+    variable decoded : market_event_t;
+    variable emit    : boolean;
+    variable side    : byte_t;
 
   begin
 
     if rising_edge(clk) then
-      malformed_pulse <= '0';
-      unknown_pulse   <= '0';
+      valid_r     <= '0';
+      malformed_r <= '0';
+      unknown_r   <= '0';
 
       if (rst = '1') then
-        event_r       <= MARKET_EVENT_RESET;
-        event_valid_r <= '0';
-        byte_index    <= 0;
+        gap_pending <= '0';
       else
-        if (event_valid_r = '1' and event_ready = '1') then
-          event_valid_r <= '0';
+        if (s_gap = '1') then
+          gap_pending <= '1';
         end if;
 
-        if (s_valid = '1' and s_ready = '1') then
-          if (s_sop = '1') then
-            event_r               <= MARKET_EVENT_RESET;
-            event_r.kind          <= s_data;
-            event_r.feed_sequence <= s_sequence;
-            byte_index            <= 0;
-          end if;
+        if (s_valid = '1') then
+          bytes   := s_message.bytes;
+          kind    := bytes(0);
+          emit    := false;
+          decoded := market_event_reset;
 
-          if (byte_index >= 5 and byte_index <= 10) then
-            event_r.timestamp_ns <= unsigned(
-                                             shift_append(std_logic_vector(event_r.timestamp_ns), s_data)
-                                           );
-          end if;
+          decoded.feed_sequence  := s_message.feed_sequence;
+          decoded.ingress_cycles := s_message.ingress_cycles;
+          decoded.stock_locate   := be_field(bytes, ITCH_STOCK_LOCATE_OFFSET, 2);
+          decoded.timestamp_ns   := be_field(bytes, ITCH_TIMESTAMP_OFFSET, 6);
 
-          if (byte_index >= 11 and byte_index <= 18) then
-            event_r.order_reference <= unsigned(
-                                                shift_append(std_logic_vector(event_r.order_reference), s_data)
-                                              );
-          end if;
-
-          if (event_r.kind = ITCH_ADD_ORDER or
-              event_r.kind = ITCH_ADD_ORDER_MPID) then
-            if (byte_index = 19) then
-              event_r.side <= s_data;
-            elsif (byte_index >= 20 and byte_index <= 23) then
-              event_r.quantity <= unsigned(
-                                           shift_append(std_logic_vector(event_r.quantity), s_data)
-                                         );
-            elsif (byte_index >= 24 and byte_index <= 31) then
-              event_r.symbol <= shift_append(event_r.symbol, s_data);
-            elsif (byte_index >= 32 and byte_index <= 35) then
-              event_r.price(31 downto 0) <= unsigned(
-                                                     shift_append(std_logic_vector(event_r.price(31 downto 0)), s_data)
-                                                   );
-            end if;
-          elsif (event_r.kind = ITCH_ORDER_CANCEL or
-                 event_r.kind = ITCH_ORDER_EXECUTED or
-                 event_r.kind = ITCH_ORDER_EXECUTED_WITH_PRICE) then
-            if (byte_index >= 19 and byte_index <= 22) then
-              event_r.quantity <= unsigned(
-                                           shift_append(std_logic_vector(event_r.quantity), s_data)
-                                         );
-            end if;
-          end if;
-
-          if (s_eop = '1') then
-            final_length := byte_index + 1;
-            if (expected_length(event_r.kind) = 0) then
-              unknown_pulse <= '1';
-            elsif (final_length /= expected_length(event_r.kind)) then
-              malformed_pulse <= '1';
-            else
-              event_valid_r <= '1';
-            end if;
-            byte_index <= 0;
+          if (expected_length(kind) = 0) then
+            unknown_r <= '1';
+          elsif (to_integer(s_message.length) /= expected_length(kind)) then
+            malformed_r <= '1';
           else
-            byte_index <= byte_index + 1;
+
+            case kind is
+
+              when ITCH_ADD_ORDER | ITCH_ADD_ORDER_MPID =>
+
+                -- F shares A's layout up to the attribution field.
+                side := bytes(ITCH_ADD_ORDER_SIDE_OFFSET);
+                if (valid_side(side)) then
+                  decoded.kind            := event_add;
+                  decoded.side            := side;
+                  decoded.order_reference := be_field(bytes, ITCH_ADD_ORDER_ORDER_REFERENCE_OFFSET, 8);
+                  decoded.quantity        := be_field(bytes, ITCH_ADD_ORDER_SHARES_OFFSET, 4);
+                  decoded.symbol          := be_bytes(bytes, ITCH_ADD_ORDER_STOCK_OFFSET, 8);
+                  decoded.price           := resize(be_field(bytes, ITCH_ADD_ORDER_PRICE_OFFSET, 4), 64);
+                  emit                    := true;
+                else
+                  malformed_r <= '1';
+                end if;
+
+              when ITCH_ORDER_EXECUTED =>
+
+                decoded.kind            := event_execute;
+                decoded.order_reference := be_field(bytes, ITCH_ORDER_EXECUTED_ORDER_REFERENCE_OFFSET, 8);
+                decoded.quantity        := be_field(bytes, ITCH_ORDER_EXECUTED_EXECUTED_SHARES_OFFSET, 4);
+                emit                    := true;
+
+              when ITCH_ORDER_EXECUTED_WITH_PRICE =>
+
+                decoded.kind            := event_execute;
+                decoded.order_reference := be_field(bytes, ITCH_ORDER_EXECUTED_WITH_PRICE_ORDER_REFERENCE_OFFSET, 8);
+                decoded.quantity        := be_field(bytes, ITCH_ORDER_EXECUTED_WITH_PRICE_EXECUTED_SHARES_OFFSET, 4);
+                decoded.price           := resize(be_field(bytes, execution_price_offset, 4), 64);
+                emit                    := true;
+
+              when ITCH_ORDER_CANCEL =>
+
+                decoded.kind            := event_cancel;
+                decoded.order_reference := be_field(bytes, ITCH_ORDER_CANCEL_ORDER_REFERENCE_OFFSET, 8);
+                decoded.quantity        := be_field(bytes, ITCH_ORDER_CANCEL_CANCELLED_SHARES_OFFSET, 4);
+                emit                    := true;
+
+              when ITCH_ORDER_DELETE =>
+
+                decoded.kind            := event_delete;
+                decoded.order_reference := be_field(bytes, ITCH_ORDER_DELETE_ORDER_REFERENCE_OFFSET, 8);
+                emit                    := true;
+
+              when ITCH_ORDER_REPLACE =>
+
+                decoded.kind                := event_replace;
+                decoded.order_reference     := be_field(bytes, ITCH_ORDER_REPLACE_ORIGINAL_ORDER_REFERENCE_OFFSET, 8);
+                decoded.new_order_reference := be_field(bytes, ITCH_ORDER_REPLACE_NEW_ORDER_REFERENCE_OFFSET, 8);
+                decoded.quantity            := be_field(bytes, ITCH_ORDER_REPLACE_SHARES_OFFSET, 4);
+                decoded.price               := resize(be_field(bytes, ITCH_ORDER_REPLACE_PRICE_OFFSET, 4), 64);
+                emit                        := true;
+
+              when ITCH_TRADE =>
+
+                side := bytes(ITCH_TRADE_SIDE_OFFSET);
+                if (valid_side(side)) then
+                  decoded.kind            := event_trade;
+                  decoded.side            := side;
+                  decoded.order_reference := be_field(bytes, ITCH_TRADE_ORDER_REFERENCE_OFFSET, 8);
+                  decoded.quantity        := be_field(bytes, ITCH_TRADE_SHARES_OFFSET, 4);
+                  decoded.symbol          := be_bytes(bytes, ITCH_TRADE_STOCK_OFFSET, 8);
+                  decoded.price           := resize(be_field(bytes, ITCH_TRADE_PRICE_OFFSET, 4), 64);
+                  emit                    := true;
+                else
+                  malformed_r <= '1';
+                end if;
+
+              when others =>
+
+                -- Well-formed but not an order-book event (S, R, Q).
+                null;
+
+            end case;
+
+          end if;
+
+          if (emit) then
+            decoded.flags(EVENT_FLAG_FEED_GAP_BIT) := gap_pending or s_gap;
+            gap_pending                            <= '0';
+            event_r                                <= decoded;
+            valid_r                                <= '1';
           end if;
         end if;
       end if;
     end if;
 
-  end process;
+  end process decode;
 
 end architecture rtl;

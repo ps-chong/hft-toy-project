@@ -47,7 +47,13 @@ def export_nvc_coverage(databases: list[Path], dest: Path) -> None:
         merged.write_bytes(databases[0].read_bytes())
     else:
         subprocess.run(
-            ["nvc", "--cover-merge", "-o", str(merged), *[str(path) for path in databases]],
+            [
+                "nvc",
+                "--cover-merge",
+                "-o",
+                str(merged),
+                *[str(path) for path in databases],
+            ],
             check=True,
         )
     subprocess.run(
@@ -67,6 +73,36 @@ def export_nvc_coverage(databases: list[Path], dest: Path) -> None:
     )
 
 
+# Compilation order, shared with vivado/tcl/build.tcl.
+SOURCE_LIST = ROOT / "zynq/ultrascale+/rtl/sources.f"
+
+
+def rtl_sources() -> list[Path]:
+    lines = SOURCE_LIST.read_text(encoding="utf-8").splitlines()
+    return [
+        ROOT / line.strip()
+        for line in lines
+        if line.strip() and not line.startswith("#")
+    ]
+
+
+VECTOR_DIR = ROOT / "protocol/vectors"
+
+# Testbenches that read protocol vectors.
+VECTOR_BENCHES = (
+    "tb_eth_ipv4_udp_rx",
+    "tb_moldudp64_rx",
+    "tb_itch_decoder",
+    "tb_telemetry_udp_tx",
+    "tb_hft_pipeline",
+    "tb_myd_czu5ev_v2_hft_top",
+)
+
+# (source, destination) clock periods in ps for the CDC stress bench: the
+# real ps_clk/axis_clk pair both ways, plus two nearly equal clocks.
+CDC_RATIOS = ((10_000, 6_400), (6_400, 10_000), (7_000, 7_100))
+
+
 def configure_suite():
     from vunit import VUnit
 
@@ -75,22 +111,39 @@ def configure_suite():
     vu.add_osvvm()
 
     lib = vu.add_library("hft")
-    lib.add_source_file(ROOT / "protocol/generated/vhdl/hft_protocol_pkg.vhd")
-    for source in (
-        "hft_types_pkg.vhd",
-        "moldudp64_decoder.vhd",
-        "itch_decoder.vhd",
-        "order_book.vhd",
-        "risk_guard.vhd",
-        "signal_engine.vhd",
-        "hft_pipeline.vhd",
-        "axis64_to_byte.vhd",
-        "udp_ipv4_rx.vhd",
-        "telemetry_udp_tx.vhd",
-        "myd_czu5ev_v2_hft_top.vhd",
-    ):
-        lib.add_source_file(ROOT / "zynq/ultrascale+/rtl" / source)
+    for source in rtl_sources():
+        lib.add_source_file(source)
+    lib.add_source_file(ROOT / "zynq/ultrascale+/tb/hft_tb_pkg.vhd")
     lib.add_source_files(ROOT / "zynq/ultrascale+/tb" / "tb_*.vhd")
+
+    vectors = VECTOR_DIR.as_posix()
+    for bench in VECTOR_BENCHES:
+        lib.test_bench(bench).set_generic("vector_dir", vectors)
+
+    cdc = lib.test_bench("tb_cdc_snapshot")
+    for source_ps, destination_ps in CDC_RATIOS:
+        cdc.add_config(
+            name=f"src{source_ps}ps_dst{destination_ps}ps",
+            generics={"src_period_ps": source_ps, "dst_period_ps": destination_ps},
+        )
+
+    # The demo points the replay at its own capture and at the events
+    # hft-plsim produced from it; CI uses the generated session.
+    # Empty string generics cannot be passed on the GHDL command line, so
+    # unset paths keep the entity default ("").
+    replay = lib.test_bench("tb_replay")
+    replay_generics = {
+        "capture_path": os.environ.get(
+            "HFT_REPLAY_CAPTURE", (VECTOR_DIR / "replay_capture.bin").as_posix()
+        ),
+        "expected_path": os.environ.get(
+            "HFT_REPLAY_EXPECTED", (VECTOR_DIR / "replay_expected.bin").as_posix()
+        ),
+        "events_path": os.environ.get("HFT_REPLAY_OUTPUT", ""),
+    }
+    for name, value in replay_generics.items():
+        if value:
+            replay.set_generic(name, value)
 
     if ENABLE_COVERAGE:
         # NVC accepts --cover only on elaborate, not analyse.

@@ -1,3 +1,14 @@
+-- UDP telemetry transmitter: one 106-byte Ethernet/IPv4/UDP frame per
+-- approved event, 64 bits per beat (14 beats, the last carrying 2 bytes).
+--
+-- The trading path never waits for telemetry. Events enter a small FIFO
+-- that only ever accepts; when it is full the event is dropped from
+-- telemetry and drop_count increments (reported in TELEMETRY_DROP_COUNT).
+-- The Ethernet, IPv4 and UDP headers depend only on generics, so they are
+-- elaboration-time constants, including the IPv4 header checksum. The UDP
+-- checksum is zero, as IPv4 allows. Payload layout:
+-- protocol/schema/telemetry_udp.yaml, big-endian.
+
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
@@ -13,7 +24,8 @@ entity telemetry_udp_tx is
     source_ip        : std_logic_vector(31 downto 0) := x"C0A80164";
     destination_ip   : std_logic_vector(31 downto 0) := x"C0A80165";
     source_port      : natural range 0 to 65535      := TELEMETRY_SOURCE_PORT;
-    destination_port : natural range 0 to 65535      := TELEMETRY_DESTINATION_PORT
+    destination_port : natural range 0 to 65535      := TELEMETRY_DESTINATION_PORT;
+    fifo_bits        : positive                      := 4
   );
   port (
     clk : in    std_logic;
@@ -21,9 +33,10 @@ entity telemetry_udp_tx is
 
     event_data   : in    market_event_t;
     event_valid  : in    std_logic;
-    event_ready  : out   std_logic;
     status_flags : in    std_logic_vector(7 downto 0);
     rx_dropped   : in    unsigned(31 downto 0);
+
+    drop_count : out   unsigned(31 downto 0);
 
     m_axis_tdata  : out   std_logic_vector(63 downto 0);
     m_axis_tkeep  : out   std_logic_vector(7 downto 0);
@@ -35,24 +48,18 @@ end entity telemetry_udp_tx;
 
 architecture rtl of telemetry_udp_tx is
 
-  constant ethernet_header_size : natural := 14;
-  constant ipv4_header_size     : natural := 20;
-  constant udp_header_size      : natural := 8;
-  constant frame_size           : natural :=
-                                             ethernet_header_size + ipv4_header_size + udp_header_size +
-                                             TELEMETRY_PAYLOAD_SIZE;
-  constant ip_total_length      : natural :=
-                                             ipv4_header_size + udp_header_size + TELEMETRY_PAYLOAD_SIZE;
-  constant udp_total_length     : natural :=
-                                             udp_header_size + TELEMETRY_PAYLOAD_SIZE;
+  constant header_size      : natural := 42;
+  constant frame_size       : natural := header_size + TELEMETRY_PAYLOAD_SIZE;
+  constant beats            : natural := (frame_size + 7) / 8;
+  constant ip_total_length  : natural := 20 + 8 + TELEMETRY_PAYLOAD_SIZE;
+  constant udp_total_length : natural := 8 + TELEMETRY_PAYLOAD_SIZE;
 
-  type frame_t is array (0 to frame_size - 1) of std_logic_vector(7 downto 0);
+  subtype frame_t is byte_array_t(0 to (beats * 8) - 1);
 
   function octet (
     value : std_logic_vector;
     index : natural
-  )
-    return std_logic_vector is
+  ) return byte_t is
 
     variable high_bit : natural;
 
@@ -63,174 +70,228 @@ architecture rtl of telemetry_udp_tx is
 
   end function octet;
 
-  function ipv4_checksum (
-    source      : std_logic_vector(31 downto 0);
-    destination : std_logic_vector(31 downto 0)
-  )
-    return unsigned is
+  function u16_octet (
+    value : natural;
+    index : natural
+  ) return byte_t is
+  begin
 
-    variable sum_i  : unsigned(19 downto 0);
-    variable folded : unsigned(19 downto 0);
+    return octet(std_logic_vector(to_unsigned(value, 16)), index);
+
+  end function u16_octet;
+
+  function ipv4_checksum return std_logic_vector is
+
+    variable sum : unsigned(15 downto 0);
 
   begin
 
-    sum_i  := to_unsigned(16#4500#, 20) +
-              to_unsigned(ip_total_length, 20) +
-              to_unsigned(16#4000#, 20) +
-              to_unsigned(16#4011#, 20) +
-              resize(unsigned(source(31 downto 16)), 20) +
-              resize(unsigned(source(15 downto 0)), 20) +
-              resize(unsigned(destination(31 downto 16)), 20) +
-              resize(unsigned(destination(15 downto 0)), 20);
-    folded := sum_i;
-
-    for iteration in 0 to 1 loop
-
-      folded := resize(folded(15 downto 0), 20) +
-                resize(folded(19 downto 16), 20);
-
-    end loop;
-
-    return not folded(15 downto 0);
+    sum := x"4500";
+    sum := ones_add(sum, to_unsigned(ip_total_length, 16));
+    sum := ones_add(sum, x"0000");
+    sum := ones_add(sum, x"4000");
+    sum := ones_add(sum, x"4011");
+    sum := ones_add(sum, unsigned(source_ip(31 downto 16)));
+    sum := ones_add(sum, unsigned(source_ip(15 downto 0)));
+    sum := ones_add(sum, unsigned(destination_ip(31 downto 16)));
+    sum := ones_add(sum, unsigned(destination_ip(15 downto 0)));
+    return std_logic_vector(not sum);
 
   end function ipv4_checksum;
 
-  signal frame_i  : frame_t                       := (others => (others => '0'));
-  signal offset_i : natural range 0 to frame_size := 0;
-  signal busy_i   : std_logic                     := '0';
+  function build_header return byte_array_t is
+
+    variable header   : byte_array_t(0 to header_size - 1);
+    variable checksum : std_logic_vector(15 downto 0);
+
+  begin
+
+    header   := (others => x"00");
+    checksum := ipv4_checksum;
+
+    for index in 0 to 5 loop
+
+      header(index)     := octet(destination_mac, index);
+      header(index + 6) := octet(source_mac, index);
+
+    end loop;
+
+    header(12) := x"08";
+    header(13) := x"00";
+    header(14) := x"45";
+    header(16) := u16_octet(ip_total_length, 0);
+    header(17) := u16_octet(ip_total_length, 1);
+    header(20) := x"40";
+    header(22) := x"40";
+    header(23) := x"11";
+    header(24) := checksum(15 downto 8);
+    header(25) := checksum(7 downto 0);
+
+    for index in 0 to 3 loop
+
+      header(index + 26) := octet(source_ip, index);
+      header(index + 30) := octet(destination_ip, index);
+
+    end loop;
+
+    header(34) := u16_octet(source_port, 0);
+    header(35) := u16_octet(source_port, 1);
+    header(36) := u16_octet(destination_port, 0);
+    header(37) := u16_octet(destination_port, 1);
+    header(38) := u16_octet(udp_total_length, 0);
+    header(39) := u16_octet(udp_total_length, 1);
+    return header;
+
+  end function build_header;
+
+  constant header : byte_array_t(0 to header_size - 1) := build_header;
+
+  -- FIFO entry: the event fields telemetry carries plus the status sampled
+  -- when the event was accepted.
+
+  type entry_t is record
+    event      : market_event_t;
+    flags      : std_logic_vector(7 downto 0);
+    rx_dropped : unsigned(31 downto 0);
+  end record entry_t;
+
+  -- Stored flat so the FIFO infers as distributed RAM.
+  constant entry_bits : natural := market_event_bits + 8 + 32;
+
+  type fifo_t is array (0 to (2 ** fifo_bits) - 1) of std_logic_vector(entry_bits - 1 downto 0);
+
+  signal fifo    : fifo_t;
+  signal wr_ptr  : unsigned(fifo_bits downto 0) := (others => '0');
+  signal rd_ptr  : unsigned(fifo_bits downto 0) := (others => '0');
+  signal drops   : unsigned(31 downto 0)        := (others => '0');
+  signal current : entry_t;
+  signal busy    : std_logic                    := '0';
+  signal beat    : natural range 0 to beats - 1 := 0;
+
+  attribute ram_style : string;
+  attribute ram_style of fifo : signal is "distributed";
+
+  function build_frame (
+    entry : entry_t
+  ) return frame_t is
+
+    variable frame   : frame_t;
+    variable payload : natural;
+
+  begin
+
+    frame                       := (others => x"00");
+    frame(0 to header_size - 1) := header;
+    payload                     := header_size;
+
+    frame(payload + 0) := u16_octet(ABI_VERSION, 0);
+    frame(payload + 1) := u16_octet(ABI_VERSION, 1);
+    frame(payload + 2) := x"01";
+    frame(payload + 3) := entry.event.kind;
+    frame(payload + 4) := entry.event.side;
+    frame(payload + 5) := entry.flags;
+
+    for index in 0 to 7 loop
+
+      frame(payload + 8 + index)  := octet(std_logic_vector(entry.event.feed_sequence), index);
+      frame(payload + 16 + index) := octet(std_logic_vector(resize(entry.event.timestamp_ns, 64)), index);
+      frame(payload + 24 + index) := octet(std_logic_vector(entry.event.order_reference), index);
+      frame(payload + 32 + index) := octet(entry.event.symbol, index);
+      frame(payload + 40 + index) := octet(std_logic_vector(entry.event.price), index);
+      frame(payload + 56 + index) := octet(std_logic_vector(entry.event.ingress_cycles), index);
+
+    end loop;
+
+    for index in 0 to 3 loop
+
+      frame(payload + 48 + index) := octet(std_logic_vector(entry.event.quantity), index);
+      frame(payload + 52 + index) := octet(std_logic_vector(entry.rx_dropped), index);
+
+    end loop;
+
+    return frame;
+
+  end function build_frame;
+
+  signal frame   : frame_t;
+  signal fifo_in : std_logic_vector(entry_bits - 1 downto 0);
 
 begin
 
-  event_ready   <= not busy_i;
-  m_axis_tvalid <= busy_i;
-  m_axis_tlast  <= '1' when ((busy_i = '1') and (offset_i + 8 >= frame_size)) else
+  drop_count    <= drops;
+  m_axis_tvalid <= busy;
+  m_axis_tlast  <= busy when beat = beats - 1 else
                    '0';
 
-  drive_axis : process (all) is
-  begin
+  frame   <= build_frame(current);
+  fifo_in <= pack_event(event_data) & status_flags & std_logic_vector(rx_dropped);
 
-    m_axis_tdata <= (others => '0');
-    m_axis_tkeep <= (others => '0');
+  -- Beat mux: lane l of beat b is frame byte 8b + l.
+  drive_axis : process (all) is
+
+    constant last_keep : natural := frame_size - ((beats - 1) * 8);
+
+  begin
 
     for lane in 0 to 7 loop
 
-      if ((busy_i = '1') and (offset_i + lane < frame_size)) then
-        m_axis_tdata((lane * 8) + 7 downto lane * 8) <= frame_i(offset_i + lane);
-        m_axis_tkeep(lane)                           <= '1';
+      m_axis_tdata((lane * 8) + 7 downto lane * 8) <= frame((beat * 8) + lane);
+
+      if ((beat < beats - 1) or (lane < last_keep)) then
+        m_axis_tkeep(lane) <= busy;
+      else
+        m_axis_tkeep(lane) <= '0';
       end if;
 
     end loop;
 
   end process drive_axis;
 
+  accept : process (clk) is
+  begin
+
+    if rising_edge(clk) then
+      if (rst = '1') then
+        wr_ptr <= (others => '0');
+        drops  <= (others => '0');
+      elsif (event_valid = '1') then
+        if ((wr_ptr - rd_ptr) = 2 ** fifo_bits) then
+          drops <= drops + 1;
+        else
+          fifo(to_integer(wr_ptr(fifo_bits - 1 downto 0))) <= fifo_in;
+          wr_ptr                                           <= wr_ptr + 1;
+        end if;
+      end if;
+    end if;
+
+  end process accept;
+
   transmit : process (clk) is
 
-    variable checksum_i : unsigned(15 downto 0);
+    variable head : std_logic_vector(entry_bits - 1 downto 0);
 
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        frame_i  <= (others => (others => '0'));
-        offset_i <= 0;
-        busy_i   <= '0';
-      else
-        if ((busy_i = '0') and (event_valid = '1')) then
-          checksum_i := ipv4_checksum(source_ip, destination_ip);
-
-          for index in 0 to 5 loop
-
-            frame_i(index)     <= octet(destination_mac, index);
-            frame_i(index + 6) <= octet(source_mac, index);
-
-          end loop;
-
-          frame_i(12) <= x"08";
-          frame_i(13) <= x"00";
-
-          frame_i(14) <= x"45";
-          frame_i(15) <= x"00";
-          frame_i(16) <= std_logic_vector(to_unsigned(ip_total_length, 16)(15 downto 8));
-          frame_i(17) <= std_logic_vector(to_unsigned(ip_total_length, 16)(7 downto 0));
-          frame_i(18) <= x"00";
-          frame_i(19) <= x"00";
-          frame_i(20) <= x"40";
-          frame_i(21) <= x"00";
-          frame_i(22) <= x"40";
-          frame_i(23) <= x"11";
-          frame_i(24) <= std_logic_vector(checksum_i(15 downto 8));
-          frame_i(25) <= std_logic_vector(checksum_i(7 downto 0));
-
-          for index in 0 to 3 loop
-
-            frame_i(index + 26) <= octet(source_ip, index);
-            frame_i(index + 30) <= octet(destination_ip, index);
-
-          end loop;
-
-          frame_i(34) <= std_logic_vector(to_unsigned(source_port, 16)(15 downto 8));
-          frame_i(35) <= std_logic_vector(to_unsigned(source_port, 16)(7 downto 0));
-          frame_i(36) <= std_logic_vector(to_unsigned(destination_port, 16)(15 downto 8));
-          frame_i(37) <= std_logic_vector(to_unsigned(destination_port, 16)(7 downto 0));
-          frame_i(38) <= std_logic_vector(to_unsigned(udp_total_length, 16)(15 downto 8));
-          frame_i(39) <= std_logic_vector(to_unsigned(udp_total_length, 16)(7 downto 0));
-          frame_i(40) <= x"00";
-          frame_i(41) <= x"00";
-
-          frame_i(42) <= x"00";
-          frame_i(43) <= std_logic_vector(to_unsigned(ABI_VERSION, 8));
-          frame_i(44) <= x"01";
-          frame_i(45) <= event_data.kind;
-          frame_i(46) <= event_data.side;
-          frame_i(47) <= status_flags;
-          frame_i(48) <= x"00";
-          frame_i(49) <= x"00";
-
-          for index in 0 to 7 loop
-
-            frame_i(index + 50) <= octet(std_logic_vector(event_data.feed_sequence), index);
-
-          end loop;
-
-          frame_i(58) <= x"00";
-          frame_i(59) <= x"00";
-
-          for index in 0 to 5 loop
-
-            frame_i(index + 60) <= octet(std_logic_vector(event_data.timestamp_ns), index);
-
-          end loop;
-
-          for index in 0 to 7 loop
-
-            frame_i(index + 66) <= octet(std_logic_vector(event_data.order_reference), index);
-            frame_i(index + 74) <= octet(event_data.symbol, index);
-            frame_i(index + 82) <= octet(std_logic_vector(event_data.price), index);
-
-          end loop;
-
-          for index in 0 to 3 loop
-
-            frame_i(index + 90) <= octet(std_logic_vector(event_data.quantity), index);
-            frame_i(index + 94) <= octet(std_logic_vector(rx_dropped), index);
-
-          end loop;
-
-          for index in 98 to frame_size - 1 loop
-
-            frame_i(index) <= x"00";
-
-          end loop;
-
-          offset_i <= 0;
-          busy_i   <= '1';
-        elsif ((busy_i = '1') and (m_axis_tready = '1')) then
-          if (offset_i + 8 >= frame_size) then
-            offset_i <= 0;
-            busy_i   <= '0';
-          else
-            offset_i <= offset_i + 8;
-          end if;
+        rd_ptr <= (others => '0');
+        busy   <= '0';
+        beat   <= 0;
+      elsif (busy = '0') then
+        if (rd_ptr /= wr_ptr) then
+          head               := fifo(to_integer(rd_ptr(fifo_bits - 1 downto 0)));
+          current.event      <= unpack_event(head(entry_bits - 1 downto 40));
+          current.flags      <= head(39 downto 32);
+          current.rx_dropped <= unsigned(head(31 downto 0));
+          rd_ptr             <= rd_ptr + 1;
+          busy               <= '1';
+          beat               <= 0;
+        end if;
+      elsif (m_axis_tready = '1') then
+        if (beat = beats - 1) then
+          busy <= '0';
+        else
+          beat <= beat + 1;
         end if;
       end if;
     end if;
