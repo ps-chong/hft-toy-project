@@ -13,6 +13,7 @@ RDEPENDS:${PN} = " \
     python3-core \
     python3-json \
     systemd-analyze \
+    ${@'packagegroup-hft-ml' if d.getVar('HFT_ENABLE_ONNX') == '1' else ''} \
 "
 
 # The public MYIR pinout cannot generate the standalone R5 BSP. Add the

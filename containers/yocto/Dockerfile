@@ -10,7 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     locale-gen en_US.UTF-8 && \
     rm -rf /var/lib/apt/lists/*
 
-RUN useradd --create-home --uid 1000 builder && \
+# ubuntu:24.04 ships a user "ubuntu" with UID 1000; bitbake must not run as
+# root, and the builder must own the mounted checkout (UID 1000 in CI).
+RUN (userdel --remove ubuntu 2>/dev/null || true) && \
+    useradd --create-home --uid 1000 builder && \
     python3 -m pip install --break-system-packages --no-cache-dir "kas>=4.7"
 
 ENV LANG=en_US.UTF-8

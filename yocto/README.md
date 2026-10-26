@@ -20,6 +20,30 @@ The build does not invoke Vivado and never deploys to a board.
 Release signing additionally requires the external variables documented in
 `deploy/swupdate/keys/README.md`.
 
+## ONNX Runtime
+
+`recipes-ml/` vendors the hermetic `onnx` 1.16.1 and `onnxruntime` 1.20.1
+recipes from meta-arago Scarthgap (commit `dd1b7f9`, provenance in each recipe
+header). meta-arago-extras itself is not a layer here because it depends on
+the TI BSP layers. Every bundled dependency is fetched through `SRC_URI` and
+CMake runs fully disconnected, so `DL_DIR` mirrors and the source-inclusive
+SPDX cover it; the recipe's `LICENSE` lists each bundled component.
+
+`HFT_ENABLE_ONNX ?= "1"` (kas `local_conf_header`) pulls in
+`packagegroup-hft-ml`: `onnxruntime`, `python3-onnxruntime`, and
+`hft-onnx-smoke`, whose `do_smoke_test` task runs the aarch64 binary under QEMU
+user mode at build time. The SDK gains `onnxruntime-dev`. Set it to `0` to
+leave ONNX out. See [docs/acceleration.md](../docs/acceleration.md) for the
+policy.
+
+`hft-image` sets `IMAGE_ROOTFS_MAXSIZE` to 1400 MiB, below the 1536 MiB A/B
+rootfs slot, so an image that would not fit fails at build time rather than
+at SWUpdate install.
+
+```bash
+kas shell yocto/kas/myd-czu5ev-v2.yml -c 'bitbake onnxruntime hft-onnx-smoke'
+```
+
 ## Deferred hardware checks
 
 The current layer encodes the reserved memory and remoteproc contract, but the

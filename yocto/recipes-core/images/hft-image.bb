@@ -18,6 +18,13 @@ IMAGE_INSTALL:append = " \
 IMAGE_FSTYPES += "tar.zst ext4 wic wic.bmap"
 WKS_SEARCH_PATH:append = ":${LAYERDIR}/wic"
 
+# Each A/B rootfs slot is 1536 MiB (wic/hft-myd-czu5ev-v2-ab.wks.in). An image
+# that would not fit fails here at build time, not at SWUpdate install.
+IMAGE_ROOTFS_MAXSIZE = "1433600"
+
+# The SDK can build C++ and Rust ONNX Runtime consumers.
+TOOLCHAIN_TARGET_TASK:append = "${@' onnxruntime-dev' if d.getVar('HFT_ENABLE_ONNX') == '1' else ''}"
+
 VOLATILE_LOG_DIR = "no"
 ROOTFS_POSTPROCESS_COMMAND += "hft_prepare_persistent_paths; "
 

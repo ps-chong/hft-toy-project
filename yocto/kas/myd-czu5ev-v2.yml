@@ -75,6 +75,7 @@ local_conf_header:
     BB_GENERATE_MIRROR_TARBALLS = "1"
     RUST_VERSION = "1.97.1"
     HFT_SRCREV ?= "${AUTOREV}"
+    HFT_ENABLE_ONNX ?= "1"
     HFT_REPOSITORY ?= "git://github.com/ps-chong/hft-toy-project.git;protocol=https;branch=develop"
   hft-downloads: |
     DL_DIR = "${TOPDIR}/../downloads"
