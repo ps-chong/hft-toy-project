@@ -124,11 +124,11 @@ job_swupdate() {
     pytest -q python/tests/test_swupdate_bundle.py -p no:cacheprovider
     workdir=$(mktemp -d)
     printf "rootfs-contract\n" | gzip -n > "${workdir}/rootfs.ext4.gz"
-    printf "boot-contract\n" > "${workdir}/boot.vfat"
+    printf "boot-contract\n" | gzip -n > "${workdir}/boot.vfat.gz"
     openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=hft-ci-contract/" \
       -keyout "${workdir}/key.pem" -out "${workdir}/cert.pem" 2>/dev/null
     python deploy/swupdate/build_bundle.py --description deploy/swupdate/sw-description \
-      --rootfs "${workdir}/rootfs.ext4.gz" --boot "${workdir}/boot.vfat" \
+      --rootfs "${workdir}/rootfs.ext4.gz" --boot "${workdir}/boot.vfat.gz" \
       --key "${workdir}/key.pem" --certificate "${workdir}/cert.pem" \
       --output "${workdir}/hft-contract.swu"
     sha256sum "${workdir}/hft-contract.swu"'

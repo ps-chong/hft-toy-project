@@ -24,10 +24,12 @@ Release signing additionally requires the external variables documented in
 
 `recipes-ml/` vendors the hermetic `onnx` 1.16.1 and `onnxruntime` 1.20.1
 recipes from meta-arago Scarthgap (commit `dd1b7f9`, provenance in each recipe
-header). meta-arago-extras itself is not a layer here because it depends on
-the TI BSP layers. Every bundled dependency is fetched through `SRC_URI` and
-CMake runs fully disconnected, so `DL_DIR` mirrors and the source-inclusive
-SPDX cover it; the recipe's `LICENSE` lists each bundled component.
+header), together with meta-arago's `abseil-cpp` upgrade to the 20240722 LTS,
+which ONNX Runtime 1.20.1 requires. meta-arago-extras itself is not a layer
+here because it depends on the TI BSP layers. Every bundled dependency is
+fetched through `SRC_URI` and CMake runs fully disconnected, so `DL_DIR`
+mirrors and the source-inclusive SPDX cover it; the recipe's `LICENSE` lists
+each bundled component.
 
 `HFT_ENABLE_ONNX ?= "1"` (kas `local_conf_header`) pulls in
 `packagegroup-hft-ml`: `onnxruntime`, `python3-onnxruntime`, and
@@ -38,7 +40,15 @@ policy.
 
 `hft-image` sets `IMAGE_ROOTFS_MAXSIZE` to 1400 MiB, below the 1536 MiB A/B
 rootfs slot, so an image that would not fit fails at build time rather than
-at SWUpdate install.
+at SWUpdate install. The WIC layout pins both boot slots at 128 MiB and both
+rootfs slots at 1536 MiB (`--fixed-size`).
+
+## SWUpdate bundle
+
+`hft-image-update` packs the rootfs (`.rootfs.ext4.gz`) and the boot-slot
+image (`.rootfs.bootvfat.gz`, the `IMAGE_BOOT_FILES` in a 128 MiB FAT image)
+under the shared `deploy/swupdate/sw-description`. SWUpdate installs them into
+the inactive `rootfs_<slot>`/`boot_<slot>` partitions.
 
 ```bash
 kas shell yocto/kas/myd-czu5ev-v2.yml -c 'bitbake onnxruntime hft-onnx-smoke'

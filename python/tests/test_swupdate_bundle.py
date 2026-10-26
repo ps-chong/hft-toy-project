@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -31,7 +32,7 @@ def read_newc(archive: bytes) -> dict[str, bytes]:
 
 def test_builds_deterministic_unsigned_bundle(tmp_path: Path) -> None:
     rootfs = tmp_path / "rootfs.ext4.gz"
-    boot = tmp_path / "boot.vfat"
+    boot = tmp_path / "boot.vfat.gz"
     output = tmp_path / "hft.swu"
     rootfs.write_bytes(b"rootfs-image")
     boot.write_bytes(b"boot-image")
@@ -56,11 +57,11 @@ def test_builds_deterministic_unsigned_bundle(tmp_path: Path) -> None:
     entries = read_newc(output.read_bytes())
     assert list(entries) == [
         "sw-description",
-        "hft-image-hft-myd-czu5ev-v2.ext4.gz",
-        "boot-a.vfat",
-        "boot-b.vfat",
+        "hft-image-hft-myd-czu5ev-v2.rootfs.ext4.gz",
+        "hft-image-hft-myd-czu5ev-v2.rootfs.bootvfat.gz",
     ]
     description = entries["sw-description"].decode()
     assert hashlib.sha256(rootfs.read_bytes()).hexdigest() in description
     assert hashlib.sha256(boot.read_bytes()).hexdigest() in description
-    assert "@ROOTFS_SHA256@" not in description
+    assert "$swupdate_get_sha256" not in description
+    assert set(re.findall(r'filename = "([^"]+)"', description)) <= set(entries)

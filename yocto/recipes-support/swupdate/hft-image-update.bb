@@ -7,22 +7,17 @@ inherit swupdate
 FILESEXTRAPATHS:prepend := "${THISDIR}/../../../deploy/swupdate:"
 SRC_URI = "file://sw-description"
 
+# The payload names in sw-description are these deploy link names
+# (hft-image-hft-myd-czu5ev-v2.rootfs.<type>).
 SWUPDATE_IMAGES = "hft-image"
-SWUPDATE_IMAGES_FSTYPES[hft-image] = ".ext4.gz"
+SWUPDATE_IMAGES_FSTYPES[hft-image] = ".rootfs.ext4.gz .rootfs.bootvfat.gz"
+SWUPDATE_IMAGES_NOAPPEND_MACHINE[hft-image] = "0"
+# Orders do_swuimage after hft-image:do_image_complete.
+IMAGE_DEPENDS = "hft-image"
 
+# swupdate-common.bbclass fails the build when signing is on and the key or
+# certificate is missing.
 HFT_SWUPDATE_SIGNING ?= "0"
 SWUPDATE_SIGNING = "${@'CMS' if d.getVar('HFT_SWUPDATE_SIGNING') == '1' else ''}"
-SWUPDATE_PRIVATE_KEY = "${HFT_SWUPDATE_PRIVATE_KEY}"
-SWUPDATE_CERTIFICATE = "${HFT_SWUPDATE_CERTIFICATE}"
-
-python do_swuimage:prepend() {
-    if d.getVar("HFT_SWUPDATE_SIGNING") == "1":
-        import os
-
-        private_key = d.getVar("HFT_SWUPDATE_PRIVATE_KEY")
-        certificate = d.getVar("HFT_SWUPDATE_CERTIFICATE")
-        if not private_key or not os.path.isfile(private_key):
-            bb.fatal("missing SWUpdate private key")
-        if not certificate or not os.path.isfile(certificate):
-            bb.fatal("missing SWUpdate certificate")
-}
+SWUPDATE_CMS_KEY = "${HFT_SWUPDATE_PRIVATE_KEY}"
+SWUPDATE_CMS_CERT = "${HFT_SWUPDATE_CERTIFICATE}"

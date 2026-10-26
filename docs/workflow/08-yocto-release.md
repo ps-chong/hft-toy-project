@@ -32,8 +32,10 @@ docker run --rm -v "$PWD:/workspace" hft-yocto \
 docker run --rm -v "$PWD:/workspace" hft-yocto kas build yocto/kas/myd-czu5ev-v2.yml
 ```
 
-Outputs land in `yocto/build/tmp/deploy/images/hft-myd-czu5ev-v2/` (`*.wic*`,
-`*.swu`) and `yocto/build/tmp/deploy/spdx/`.
+kas builds in `build/` at the repository root. Outputs land in
+`build/tmp/deploy/images/hft-myd-czu5ev-v2/` (`*.wic*`, `*.swu`) and
+`build/tmp/deploy/spdx/`; downloads and sstate are kept in `yocto/downloads`
+and `yocto/sstate-cache`.
 
 The image recipes fetch the project's own sources from GitHub at
 `HFT_SRCREV` (default: the tip of `develop`), so push before building, and
@@ -49,14 +51,25 @@ runs at build time under QEMU user mode and on the target as
 
 ## SWUpdate bundles
 
-`swupdate.yml` (and `scripts/ci/local.sh swupdate`) builds a deterministic,
-signed contract bundle from stand-in images, which checks the
-`sw-description`, the newc layout, and signature handling without a Yocto
-build:
+A bundle carries two payloads. The first is the rootfs
+(`hft-image-hft-myd-czu5ev-v2.rootfs.ext4.gz`). The second is a boot-slot
+FAT image (`...rootfs.bootvfat.gz`), which `hft-image` builds from the same
+`IMAGE_BOOT_FILES` that WIC writes into `boot_a`/`boot_b`. SWUpdate writes them
+to the inactive `rootfs_<slot>` and `boot_<slot>` partitions, then sets
+`boot_slot`. The WIC layout pins the slots at 128 MiB and 1536 MiB
+(`--fixed-size`).
+
+Two builders read the same `deploy/swupdate/sw-description`, so its payload
+names and `$swupdate_get_sha256(file)` hashes have one meaning:
+
+- `kas build` makes `hft-image-update` (meta-swupdate).
+- `swupdate.yml` (and `scripts/ci/local.sh swupdate`) builds a deterministic,
+  signed contract bundle from stand-in payloads. It checks the
+  description, the newc layout and signature handling without a Yocto build:
 
 ```bash
 python deploy/swupdate/build_bundle.py --description deploy/swupdate/sw-description \
-  --rootfs rootfs.ext4.gz --boot boot.vfat --key key.pem --certificate cert.pem \
+  --rootfs rootfs.ext4.gz --boot boot.vfat.gz --key key.pem --certificate cert.pem \
   --output hft.swu
 ```
 

@@ -8,19 +8,20 @@ software =
     {
         images: (
             {
-                filename = "hft-image-hft-myd-czu5ev-v2.ext4.gz";
+                filename = "hft-image-hft-myd-czu5ev-v2.rootfs.ext4.gz";
                 type = "raw";
                 compressed = "zlib";
                 device = "/dev/disk/by-partlabel/rootfs_a";
                 installed-directly = true;
-                sha256 = "@ROOTFS_SHA256@";
+                sha256 = "$swupdate_get_sha256(hft-image-hft-myd-czu5ev-v2.rootfs.ext4.gz)";
             },
             {
-                filename = "boot-a.vfat";
+                filename = "hft-image-hft-myd-czu5ev-v2.rootfs.bootvfat.gz";
                 type = "raw";
+                compressed = "zlib";
                 device = "/dev/disk/by-partlabel/boot_a";
                 installed-directly = true;
-                sha256 = "@BOOT_SHA256@";
+                sha256 = "$swupdate_get_sha256(hft-image-hft-myd-czu5ev-v2.rootfs.bootvfat.gz)";
             }
         );
         bootenv: (
@@ -35,19 +36,20 @@ software =
     {
         images: (
             {
-                filename = "hft-image-hft-myd-czu5ev-v2.ext4.gz";
+                filename = "hft-image-hft-myd-czu5ev-v2.rootfs.ext4.gz";
                 type = "raw";
                 compressed = "zlib";
                 device = "/dev/disk/by-partlabel/rootfs_b";
                 installed-directly = true;
-                sha256 = "@ROOTFS_SHA256@";
+                sha256 = "$swupdate_get_sha256(hft-image-hft-myd-czu5ev-v2.rootfs.ext4.gz)";
             },
             {
-                filename = "boot-b.vfat";
+                filename = "hft-image-hft-myd-czu5ev-v2.rootfs.bootvfat.gz";
                 type = "raw";
+                compressed = "zlib";
                 device = "/dev/disk/by-partlabel/boot_b";
                 installed-directly = true;
-                sha256 = "@BOOT_SHA256@";
+                sha256 = "$swupdate_get_sha256(hft-image-hft-myd-czu5ev-v2.rootfs.bootvfat.gz)";
             }
         );
         bootenv: (
