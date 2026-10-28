@@ -11,8 +11,8 @@ flowchart TB
     Vsg --> Ghdl["VUnit on GHDL"]
     Ghdl --> Nvc["VUnit on NVC (+ coverage)"]
     Nvc --> Replay["tb_replay: RTL equals the software model"]
-    Replay --> Vivado["Vivado OOC synthesis"]
-    Vivado --> Gates{"WNS >= 0, WHS >= 0,<br/>no Critical CDC?"}
+    Replay --> Vivado["Vivado OOC synthesis and<br/>implementation, benches on xsim"]
+    Vivado --> Gates{"WNS >= 0, WHS >= 0 after synthesis<br/>and routing, no Critical CDC?"}
     Gates -->|yes| Done["commit"]
     Gates -->|no| Edit
 ```
@@ -33,7 +33,8 @@ VUNIT_SIMULATOR=nvc HFT_VHDL_COVERAGE=1 python3 zynq/ultrascale+/sim/run.py   # 
 python3 zynq/ultrascale+/sim/run.py "hft.tb_moldudp64_rx.*"                     # one bench
 ```
 
-Success: `pass 52 of 52` on both simulators. The benches cover:
+Success: `pass 53 of 53` on both simulators (and `53 of 53 tests passed on
+xsim` from `scripts/linux/xsim.sh`, below). The benches cover:
 
 | Bench | Checks |
 | --- | --- |
@@ -51,17 +52,37 @@ Success: `pass 52 of 52` on both simulators. The benches cover:
 `tb_replay` reads any capture: set `HFT_REPLAY_CAPTURE`,
 `HFT_REPLAY_EXPECTED` and `HFT_REPLAY_OUTPUT` (the demo does).
 
-## 3. Synthesize
+The same benches also run on the Vivado simulator, from WSL:
 
-```powershell
-.\scripts\windows\build-fpga.ps1 -Profile sim-dma -License "$env:APPDATA\XilinxLicense-BASIC"
-Get-Content build\vivado\sim-dma\gates.txt
+```bash
+scripts/linux/xsim.sh                          # build/xsim/xsim-junit.xml and logs/
+scripts/linux/xsim.sh --filter tb_risk_guard   # a regex on hft.<bench>[.<config>].<test>
 ```
 
-Success: the run ends with "out-of-context synthesis completed
-successfully", and `gates.txt` shows non-negative `wns_ns`/`whs_ns` and
-`critical_cdc=0`. Reports (timing, utilization, clock interaction, CDC,
-methodology, DRC) are next to it.
+xsim 2026.1 cannot elaborate VUnit's own library, so `sim/xsim.py` takes the
+compile order and test names from VUnit and links the benches against
+`sim/xsim/vunit_lib.vhd`, a stand-in for the VUnit calls they use. Every
+test runs in a simulation of its own, as under VUnit. A bench that needs
+another VUnit call needs an overload there.
+
+## 3. Synthesize and implement
+
+```bash
+scripts/linux/build-fpga.sh --profile sim-dma --goal impl
+cat build/vivado/sim-dma/gates.txt
+```
+
+```powershell
+.\scripts\windows\build-fpga.ps1 -Profile sim-dma -License "$env:APPDATA\XilinxLicense-BASIC"   # synthesis, from Windows
+```
+
+Success: the run ends with "out-of-context implementation completed
+successfully" ("synthesis" for `--goal synth`), and `gates.txt` shows
+non-negative `wns_ns`/`whs_ns` and `route_wns_ns`/`route_whs_ns`,
+`critical_cdc=0` and `route_errors=0`. Reports (timing, utilization, clock
+interaction, CDC, methodology, DRC, and their `_routed` counterparts with the
+route status) are next to it. The clock ports are driven from BUFGCE sites
+(`HD.CLK_SRC`) so that out-of-context routing sees real clock trees.
 
 ## Adding a block
 

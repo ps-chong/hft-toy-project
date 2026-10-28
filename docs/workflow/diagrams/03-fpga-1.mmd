@@ -3,7 +3,7 @@ flowchart TB
     Vsg --> Ghdl["VUnit on GHDL"]
     Ghdl --> Nvc["VUnit on NVC (+ coverage)"]
     Nvc --> Replay["tb_replay: RTL equals the software model"]
-    Replay --> Vivado["Vivado OOC synthesis"]
-    Vivado --> Gates{"WNS >= 0, WHS >= 0,<br/>no Critical CDC?"}
+    Replay --> Vivado["Vivado OOC synthesis and<br/>implementation, benches on xsim"]
+    Vivado --> Gates{"WNS >= 0, WHS >= 0 after synthesis<br/>and routing, no Critical CDC?"}
     Gates -->|yes| Done["commit"]
     Gates -->|no| Edit

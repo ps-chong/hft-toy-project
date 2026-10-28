@@ -93,6 +93,7 @@ In RTL simulation, an add-order frame reaches the R5 event port 17 cycles
 | R5 model on a host: event to intent, p50 / p99 | 18 us / 60 us | demo |
 | A53 on a host: intent to exchange ack, p50 / p99 | 195 us / 436 us | demo, through Docker networking |
 | Vivado: setup slack at 156.25 MHz | +0.906 ns | out-of-context synthesis, XCZU5EV-2 |
+| Vivado: routed setup / hold slack | +0.296 ns / +0.010 ns | out-of-context implementation, XCZU5EV-2 |
 
 Host numbers show that the software paths work; they are not board
 measurements. See [docs/latency.md](docs/latency.md).
@@ -103,7 +104,7 @@ measurements. See [docs/latency.md](docs/latency.md).
 
 | Step | Guide |
 | --- | --- |
-| Tools, WSL mirror, container image, Vivado license tier | [01 Setup](docs/workflow/01-setup.md) |
+| Tools, WSL, container image, Vivado license tier | [01 Setup](docs/workflow/01-setup.md) |
 | Schemas and generated code | [02 Contracts](docs/workflow/02-contracts.md) |
 | RTL, simulation, Vivado | [03 FPGA](docs/workflow/03-fpga.md) |
 | R5 firmware | [04 Cortex-R5](docs/workflow/04-r5.md) |
@@ -113,12 +114,17 @@ measurements. See [docs/latency.md](docs/latency.md).
 | Yocto image and updates | [08 Yocto and release](docs/workflow/08-yocto-release.md) |
 | One add order through every layer | [09 Life of a packet](docs/workflow/09-packet-walkthrough.md) |
 
-The shortest path to running every check locally:
+The shortest path to running every check locally, from a clone in WSL with
+Docker:
 
 ```bash
-bash /mnt/c/Users/121679/hft-toy-project/scripts/ci/sync-wsl.sh   # in WSL, with Docker
-cd ~/hft-ci && scripts/ci/local.sh all
+scripts/ci/local.sh all
+scripts/linux/build-fpga.sh --profile sim-dma --goal impl   # the Windows Vivado, through WSL interop
+scripts/linux/xsim.sh                                       # the VUnit benches on the Vivado simulator
 ```
+
+From a Windows checkout, `scripts/ci/sync-wsl.sh` mirrors it into WSL first,
+and the PowerShell wrappers run Vivado directly:
 
 ```powershell
 .\scripts\windows\build-fpga.ps1 -Profile sim-dma -License "$env:APPDATA\XilinxLicense-BASIC"
@@ -138,7 +144,7 @@ cd ~/hft-ci && scripts/ci/local.sh all
 | `containers/` | Host and Yocto build images, the Compose file |
 | `yocto/` | `meta-hft`: machine, A/B image, OpenAMP, NVMe, SWUpdate, ONNX Runtime |
 | `deploy/swupdate/` | Bundle description and builder |
-| `scripts/` | CI helpers, Windows wrappers (Vivado, demo, runner, CI polling), figures |
+| `scripts/` | CI helpers; Linux/WSL and Windows wrappers (Vivado, xsim, runner, CI polling); figures |
 | `docs/` | Architecture, workflow guides, figures, generated register map |
 
 ## Status

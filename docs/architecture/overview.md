@@ -56,7 +56,8 @@ Open-source simulation and host models verify contracts and state transitions,
 and the Docker Compose demo runs the R5 firmware core, the A53 daemon, and a
 software model of the PL ingress together; the captured feed is replayed
 through the VHDL and must match the software model byte for byte. Vivado
-synthesis, with timing and clock-domain-crossing gates, is a local Windows
-operation. Actual SFP cage ordering, MAC/PCS/GTH reset, cache, interrupt,
+synthesis and out-of-context implementation, with timing, routing and
+clock-domain-crossing gates, and the benches on xsim run on the workstation
+with the Windows Vivado installation, locally or through its WSL runner. Actual SFP cage ordering, MAC/PCS/GTH reset, cache, interrupt,
 remoteproc, PCIe, boot, SWUpdate rollback, and latency behavior is deferred
 until a board is available.

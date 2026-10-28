@@ -6,7 +6,7 @@ like.
 
 | Guide | Covers |
 | --- | --- |
-| [01 Setup](01-setup.md) | Tools, the WSL mirror, the host image, Vivado and its license tier |
+| [01 Setup](01-setup.md) | Tools, the WSL checkout, the host image, Vivado and its license tier |
 | [02 Contracts](02-contracts.md) | Schemas, the generator, and changing a field safely |
 | [03 FPGA](03-fpga.md) | RTL, simulation on GHDL and NVC, VSG, Vivado gates |
 | [04 Cortex-R5](04-r5.md) | Presets, sanitizers, coverage, the cross build, the host model |

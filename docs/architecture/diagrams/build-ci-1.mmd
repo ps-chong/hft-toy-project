@@ -6,7 +6,7 @@ flowchart LR
     Source --> Quality["Python, docs, figure drift"]
     Source --> Demo["Demo smoke (Docker Compose)"]
     Source --> SWU["SWUpdate contract"]
-    Source -.->|"runner online"| Vivado["Vivado OOC synthesis<br/>self-hosted Windows"]
+    Source -.->|"runner online"| Vivado["Vivado OOC synthesis,<br/>implementation, xsim<br/>self-hosted WSL"]
     Source --> Yocto["Yocto image (manual and weekly)"]
     FPGA --> Reports["JUnit, coverage, demo and Vivado reports"]
     R5Host --> Reports

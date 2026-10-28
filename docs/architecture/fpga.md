@@ -114,21 +114,37 @@ revision.
 `build.tcl` reads the same source list as the simulation
 (`rtl/sources.f`), synthesizes out of context for `xczu5ev-sfvc784-2-e`,
 applies the CDC constraints to the synthesized netlist, and fails the build on
-negative setup or hold slack or on any Critical CDC finding. The latest local
-run:
+negative setup or hold slack or on any Critical CDC finding. Its `impl` goal
+then places and routes out of context, with `axis_clk` and `ps_clk` driven
+from BUFGCE sites in the middle clock region of the X1 column (`HD.CLK_SRC`),
+and fails on negative routed slack or any net with routing errors. Hold from
+the input ports is left to the integrated build: out of context their launch
+clock is ideal while the capturing registers sit on the BUFGCE tree. The
+latest local run:
 
 | Gate | Result |
 | --- | --- |
 | Setup WNS | +0.906 ns at 6.4 ns |
 | Hold WHS | +0.045 ns |
 | Critical CDC | 0 (4 recognized synchronizers, 511 constrained handshake bits) |
+| Routed setup WNS | +0.296 ns (into the order store's UltraRAM) |
+| Routed hold WHS | +0.010 ns |
+| Nets with routing errors | 0 |
 | Resources | 13.6k LUTs (11.6%), 9.7k FFs (4.1%), 4 URAM, 0 DSP |
 
 Vivado 2026.1 shows only the devices of the license tier it starts with. The
 free BASIC tier covers the XCZU5EV; a license file that also holds the ALVEO
 tier can start in ALVEO and hide it.
-`scripts/windows/split-vivado-license.ps1` writes a BASIC-only copy, and
-`build-fpga.ps1 -License <dir>` (or `HFT_VIVADO_LICENSE`) uses it.
+`scripts/linux/split-vivado-license.py` (or
+`scripts/windows/split-vivado-license.ps1`) writes a BASIC-only copy, and
+`build-fpga.sh --license <dir>` (`build-fpga.ps1 -License <dir>`) or
+`HFT_VIVADO_LICENSE` uses it.
+
+The VUnit benches also run on the Vivado simulator (`scripts/linux/xsim.sh`).
+xsim 2026.1 compiles VUnit 4.7 but cannot elaborate it, so
+`sim/xsim.py` links them against `sim/xsim/vunit_lib.vhd`, a stand-in for the
+VUnit calls the benches use, with the compile order and test names from
+VUnit and one simulation per test.
 
 `sim-dma` is the license-independent out-of-context build. `sfp10g` also
 checks that the AMD 10G/25G subsystem exists. The public MYIR pinout does not

@@ -1,9 +1,9 @@
 flowchart LR
-    Edit["edit on Windows"] --> Local["scripts/ci/local.sh<br/>(WSL, hft-host:dev)"]
+    Edit["edit in WSL"] --> Local["scripts/ci/local.sh<br/>(hft-host:dev)"]
     Local -->|green| Commit["commit"]
     Commit --> Push["git push origin develop"]
     Push --> Hosted["GitHub-hosted workflows"]
-    Push -.->|"runner online"| Vivado["vivado.yml"]
-    Hosted --> Poll["scripts/windows/poll-ci.ps1"]
+    Push -.->|"runner online"| Vivado["vivado.yml<br/>(WSL runner)"]
+    Hosted --> Poll["scripts/linux/poll-ci.sh"]
     Vivado --> Poll
     Poll -->|failure| Logs["build/ci-logs/*.log"] --> Edit
