@@ -103,6 +103,42 @@ VECTOR_BENCHES = (
 CDC_RATIOS = ((10_000, 6_400), (6_400, 10_000), (7_000, 7_100))
 
 
+# Shared with xsim.py, which runs the same benches on the Vivado simulator.
+def bench_generics() -> dict[str, dict[str, str]]:
+    """Generics every configuration of a test bench gets."""
+    vectors = VECTOR_DIR.as_posix()
+    generics = {bench: {"vector_dir": vectors} for bench in VECTOR_BENCHES}
+
+    # The demo points the replay at its own capture and at the events
+    # hft-plsim produced from it; CI uses the generated session.
+    # Empty string generics cannot be passed on the GHDL command line, so
+    # unset paths keep the entity default ("").
+    replay = {
+        "capture_path": os.environ.get(
+            "HFT_REPLAY_CAPTURE", (VECTOR_DIR / "replay_capture.bin").as_posix()
+        ),
+        "expected_path": os.environ.get(
+            "HFT_REPLAY_EXPECTED", (VECTOR_DIR / "replay_expected.bin").as_posix()
+        ),
+        "events_path": os.environ.get("HFT_REPLAY_OUTPUT", ""),
+    }
+    generics["tb_replay"] = {name: value for name, value in replay.items() if value}
+    return generics
+
+
+def bench_configs() -> dict[str, dict[str, dict[str, int]]]:
+    """Named configurations per test bench; each replaces the default one."""
+    return {
+        "tb_cdc_snapshot": {
+            f"src{source_ps}ps_dst{destination_ps}ps": {
+                "src_period_ps": source_ps,
+                "dst_period_ps": destination_ps,
+            }
+            for source_ps, destination_ps in CDC_RATIOS
+        }
+    }
+
+
 def configure_suite():
     from vunit import VUnit
 
@@ -116,34 +152,14 @@ def configure_suite():
     lib.add_source_file(ROOT / "zynq/ultrascale+/tb/hft_tb_pkg.vhd")
     lib.add_source_files(ROOT / "zynq/ultrascale+/tb" / "tb_*.vhd")
 
-    vectors = VECTOR_DIR.as_posix()
-    for bench in VECTOR_BENCHES:
-        lib.test_bench(bench).set_generic("vector_dir", vectors)
-
-    cdc = lib.test_bench("tb_cdc_snapshot")
-    for source_ps, destination_ps in CDC_RATIOS:
-        cdc.add_config(
-            name=f"src{source_ps}ps_dst{destination_ps}ps",
-            generics={"src_period_ps": source_ps, "dst_period_ps": destination_ps},
-        )
-
-    # The demo points the replay at its own capture and at the events
-    # hft-plsim produced from it; CI uses the generated session.
-    # Empty string generics cannot be passed on the GHDL command line, so
-    # unset paths keep the entity default ("").
-    replay = lib.test_bench("tb_replay")
-    replay_generics = {
-        "capture_path": os.environ.get(
-            "HFT_REPLAY_CAPTURE", (VECTOR_DIR / "replay_capture.bin").as_posix()
-        ),
-        "expected_path": os.environ.get(
-            "HFT_REPLAY_EXPECTED", (VECTOR_DIR / "replay_expected.bin").as_posix()
-        ),
-        "events_path": os.environ.get("HFT_REPLAY_OUTPUT", ""),
-    }
-    for name, value in replay_generics.items():
-        if value:
-            replay.set_generic(name, value)
+    for bench, generics in bench_generics().items():
+        test_bench = lib.test_bench(bench)
+        for name, value in generics.items():
+            test_bench.set_generic(name, value)
+    for bench, configs in bench_configs().items():
+        test_bench = lib.test_bench(bench)
+        for name, generics in configs.items():
+            test_bench.add_config(name=name, generics=generics)
 
     if ENABLE_COVERAGE:
         # NVC accepts --cover only on elaborate, not analyse.
