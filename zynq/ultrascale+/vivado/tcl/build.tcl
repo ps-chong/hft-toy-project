@@ -2,11 +2,15 @@
 #
 # Arguments: repository_root output_directory profile goal
 # profile: sim-dma | sfp10g
-# goal: synth | bitstream
+# goal: synth | impl | bitstream
+#   synth: out-of-context synthesis and its gates
+#   impl:  synth, then out-of-context place and route and the routed gates
 #
 # Gates (each fails the build): setup and hold slack >= 0 on every
 # constrained path, and no Critical clock-domain crossing in report_cdc.
 # Every crossing must go through cdc_snapshot, cdc_sync_bit or reset_sync.
+# impl repeats the slack gates on the routed design (hold from input ports
+# excepted; see below) and requires that no net has routing errors.
 
 proc fail {message} {
   puts stderr "ERROR: $message"
@@ -27,7 +31,7 @@ set part_name xczu5ev-sfvc784-2-e
 if {$profile ni {sim-dma sfp10g}} {
   fail "unknown profile '$profile'"
 }
-if {$goal ni {synth bitstream}} {
+if {$goal ni {synth impl bitstream}} {
   fail "unknown goal '$goal'"
 }
 if {[string first "2026.1" [version -short]] != 0} {
@@ -35,6 +39,9 @@ if {[string first "2026.1" [version -short]] != 0} {
 }
 
 file mkdir $output_dir
+# Vivado on Windows defaults to 2 threads; 8 is the most placement, routing
+# and timing analysis use.
+set_param general.maxThreads 8
 set existing_board_repos [get_param board.repoPaths]
 set_param board.repoPaths [linsert $existing_board_repos 0 $board_repo]
 
@@ -113,12 +120,14 @@ write_checkpoint -force [file join $output_dir hft_pipeline_synth.dcp]
 
 # --- Gates ------------------------------------------------------------------
 
-set setup_paths [get_timing_paths -delay_type max -max_paths 1 -nworst 1]
-set hold_paths [get_timing_paths -delay_type min -max_paths 1 -nworst 1]
-set wns [expr {[llength $setup_paths] ? [get_property SLACK [lindex $setup_paths 0]] : 0.0}]
-set whs [expr {[llength $hold_paths] ? [get_property SLACK [lindex $hold_paths 0]] : 0.0}]
-if {$wns eq ""} { set wns 0.0 }
-if {$whs eq ""} { set whs 0.0 }
+proc worst_slack {delay_type} {
+  set paths [get_timing_paths -delay_type $delay_type -max_paths 1 -nworst 1]
+  set slack [expr {[llength $paths] ? [get_property SLACK [lindex $paths 0]] : 0.0}]
+  return [expr {$slack eq "" ? 0.0 : $slack}]
+}
+
+set wns [worst_slack max]
+set whs [worst_slack min]
 
 # report_cdc summary rows read "<rule> <severity> <count> <description>",
 # e.g. "CDC-15  Warning  511  Clock enable controlled CDC structure detected".
@@ -159,6 +168,88 @@ if {$critical_cdc > 0} {
 if {$goal eq "bitstream"} {
   fail "Bitstream/XSA generation is blocked until MYIR DDR/PS presets and SFP cage routing are verified"
 }
+if {$goal eq "synth"} {
+  puts "INFO: MYD-CZU5EV-V2 HFT pipeline out-of-context synthesis completed successfully."
+  exit 0
+}
 
-puts "INFO: MYD-CZU5EV-V2 HFT pipeline out-of-context synthesis completed successfully."
+# --- Out-of-context implementation -----------------------------------------
+
+# Out of context, nothing buffers the clock ports, so without HD.CLK_SRC the
+# router treats both clocks as ideal. Drive them from BUFGCE sites in the
+# clock region nearest the vertical middle of the device, as the board's
+# global buffers would; on the XCZU5EV only the X1 column has BUFGCEs.
+set rows [get_property ROW_INDEX [get_clock_regions]]
+set middle [expr {([tcl::mathfunc::max {*}$rows] + [tcl::mathfunc::min {*}$rows]) / 2.0}]
+set best_region ""
+set best_distance ""
+foreach name [lsort -dictionary [get_clock_regions]] {
+  set region [get_clock_regions $name]
+  set buffers [get_sites -quiet -of_objects $region -filter {SITE_TYPE == BUFGCE}]
+  set distance [expr {abs([get_property ROW_INDEX $region] - $middle)}]
+  if {[llength $buffers] >= 2 && ($best_region eq "" || $distance < $best_distance)} {
+    set best_region $region
+    set best_distance $distance
+  }
+}
+if {$best_region eq ""} {
+  fail "no clock region of $part_name offers two BUFGCE sites for the clock sources"
+}
+set buffers [lsort -dictionary [get_sites -of_objects $best_region -filter {SITE_TYPE == BUFGCE}]]
+set_property HD.CLK_SRC [lindex $buffers 0] [get_ports axis_clk]
+set_property HD.CLK_SRC [lindex $buffers 1] [get_ports ps_clk]
+puts "INFO: clock sources axis_clk=[lindex $buffers 0] ps_clk=[lindex $buffers 1] ($best_region)"
+
+# The ports still see an ideal clock while the registers behind them now see
+# the BUFGCE tree (about 1.7 ns), so every input path would fail hold by that
+# much. On the board the registers driving these ports (MAC, PS AXI master)
+# hang off the same tree; their hold belongs to the integrated build, and the
+# router must not pad the paths for it.
+set_false_path -hold -from [all_inputs]
+
+place_design
+phys_opt_design
+route_design
+
+report_timing_summary -delay_type min_max -max_paths 20 -report_unconstrained \
+  -file [file join $output_dir timing_summary_routed.rpt]
+report_utilization \
+  -file [file join $output_dir utilization_routed.rpt]
+report_route_status \
+  -file [file join $output_dir route_status_routed.rpt]
+report_drc \
+  -file [file join $output_dir drc_routed.rpt]
+report_methodology \
+  -file [file join $output_dir methodology_routed.rpt]
+write_checkpoint -force [file join $output_dir hft_pipeline_routed.dcp]
+
+set route_wns [worst_slack max]
+set route_whs [worst_slack min]
+set route_errors 0
+set status_handle [open [file join $output_dir route_status_routed.rpt] r]
+foreach line [split [read $status_handle] "\n"] {
+  if {[regexp {# of nets with routing errors\.*\s*:\s*(\d+)} $line -> count]} {
+    set route_errors $count
+  }
+}
+close $status_handle
+
+set summary [open [file join $output_dir gates.txt] a]
+puts $summary "route_wns_ns=$route_wns"
+puts $summary "route_whs_ns=$route_whs"
+puts $summary "route_errors=$route_errors"
+close $summary
+
+puts "INFO: routed WNS $route_wns ns, WHS $route_whs ns, nets with routing errors: $route_errors"
+if {$route_wns < 0} {
+  fail "routed setup timing not met (WNS $route_wns ns); see timing_summary_routed.rpt"
+}
+if {$route_whs < 0} {
+  fail "routed hold timing not met (WHS $route_whs ns); see timing_summary_routed.rpt"
+}
+if {$route_errors > 0} {
+  fail "$route_errors net(s) with routing errors; see route_status_routed.rpt"
+}
+
+puts "INFO: MYD-CZU5EV-V2 HFT pipeline out-of-context implementation completed successfully."
 exit 0
