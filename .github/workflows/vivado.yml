@@ -1,18 +1,22 @@
 name: Vivado
 
-# Out-of-context synthesis of the PL design with Vivado 2026.1 on the
-# self-hosted Windows runner (scripts/windows/runner.ps1, started on demand).
+# Out-of-context synthesis and implementation of the PL design, and the VUnit
+# test benches on the Vivado simulator (xsim), with Vivado 2026.1 on the
+# self-hosted WSL runner (scripts/linux/runner.sh, started on demand). Vivado
+# is that PC's Windows installation, driven through WSL interop
+# (scripts/linux/common.sh).
 #
 # This workflow never runs for pull requests: the self-hosted runner executes
 # repository code on a workstation with locally licensed tools, so only
 # pushes to develop in this repository and manual dispatches may use it.
-# build.tcl fails the job on negative setup or hold slack and on any
-# Critical clock-domain crossing.
+# build.tcl fails the job on negative setup or hold slack after synthesis or
+# after routing, on any net with routing errors, and on any Critical
+# clock-domain crossing; xsim.py fails it on any failed test.
 #
-# The job runs only while the repository variable HFT_VIVADO_RUNNER is
-# "online" (set it after `runner.ps1 -Action Install`); otherwise it is
-# skipped instead of queueing for a runner that does not exist. Without the
-# runner, the same gates run locally: scripts/windows/build-fpga.ps1.
+# The jobs run only while the repository variable HFT_VIVADO_RUNNER is
+# "online" (set it after `runner.sh install`); otherwise they are skipped
+# instead of queueing for a runner that does not exist. Without the runner,
+# the same gates run locally: scripts/linux/build-fpga.sh and xsim.sh.
 
 on:
   push:
@@ -22,9 +26,11 @@ on:
       - "zynq/ultrascale+/constraints/**"
       - "zynq/ultrascale+/vivado/**"
       - "zynq/ultrascale+/board_files/**"
+      - "zynq/ultrascale+/tb/**"
+      - "zynq/ultrascale+/sim/**"
       - "protocol/generated/vhdl/**"
-      - "scripts/windows/build-fpga.ps1"
-      - "scripts/windows/verify-tools.ps1"
+      - "protocol/vectors/**"
+      - "scripts/linux/**"
       - ".github/workflows/vivado.yml"
   workflow_dispatch:
 
@@ -35,14 +41,18 @@ concurrency:
   group: vivado
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  synthesis:
+  implementation:
     if: >-
       github.repository == 'ps-chong/hft-toy-project' &&
       vars.HFT_VIVADO_RUNNER == 'online' &&
       (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/develop')
-    runs-on: [self-hosted, windows, vivado]
-    timeout-minutes: 90
+    runs-on: [self-hosted, linux, vivado]
+    timeout-minutes: 120
     strategy:
       # One Vivado at a time on the workstation.
       max-parallel: 1
@@ -54,33 +64,36 @@ jobs:
         with:
           persist-credentials: false
       # HFT_VIVADO_LICENSE (a BASIC-tier license directory) comes from the
-      # runner's .env; see scripts/windows/runner.ps1.
-      - name: Synthesize (${{ matrix.profile }})
-        shell: powershell
-        run: scripts/windows/build-fpga.ps1 -Profile ${{ matrix.profile }}
+      # runner's .env; see scripts/linux/runner.sh.
+      - name: Synthesize and implement (${{ matrix.profile }})
+        run: scripts/linux/build-fpga.sh --profile ${{ matrix.profile }} --goal impl
       - name: Gate summary
         if: always()
-        shell: powershell
         run: |
-          $out = "build/vivado/${{ matrix.profile }}"
-          $summary = @("## Vivado ${{ matrix.profile }}", "")
-          if (Test-Path "$out/gates.txt") {
-            $summary += "| Gate | Value |", "| --- | --- |"
-            foreach ($line in Get-Content "$out/gates.txt") {
-              $name, $value = $line -split "=", 2
-              $summary += "| $name | $value |"
-            }
-          } else {
-            $summary += "Synthesis did not reach the gates; see the Vivado log artifact."
-          }
-          if (Test-Path "$out/utilization.rpt") {
-            $summary += "", '```'
-            $summary += Select-String -Path "$out/utilization.rpt" `
-              -Pattern '^\| (CLB LUTs|CLB Registers|Block RAM Tile|URAM|DSPs) ' |
-              ForEach-Object { $_.Line }
-            $summary += '```'
-          }
-          $summary | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          out="build/vivado/${{ matrix.profile }}"
+          {
+            echo "## Vivado ${{ matrix.profile }}"
+            echo
+            if [ -f "$out/gates.txt" ]; then
+              echo "| Gate | Value |"
+              echo "| --- | --- |"
+              tr -d '\r' < "$out/gates.txt" | while IFS='=' read -r name value; do
+                echo "| $name | $value |"
+              done
+            else
+              echo "Synthesis did not reach the gates; see the Vivado log artifact."
+            fi
+            for report in utilization.rpt utilization_routed.rpt; do
+              if [ -f "$out/$report" ]; then
+                echo
+                echo "$report"
+                echo '```'
+                tr -d '\r' < "$out/$report" |
+                  grep -E '^\| (CLB LUTs|CLB Registers|Block RAM Tile|URAM|DSPs) ' || true
+                echo '```'
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -89,4 +102,50 @@ jobs:
             build/vivado/${{ matrix.profile }}/*.rpt
             build/vivado/${{ matrix.profile }}/gates.txt
             build/vivado/${{ matrix.profile }}/vivado.log
+          if-no-files-found: warn
+
+  xsim:
+    if: >-
+      github.repository == 'ps-chong/hft-toy-project' &&
+      vars.HFT_VIVADO_RUNNER == 'online' &&
+      (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/develop')
+    runs-on: [self-hosted, linux, vivado]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: VUnit test benches on xsim
+        run: scripts/linux/xsim.sh
+      - name: Test summary
+        if: always()
+        run: |
+          {
+            echo "## xsim"
+            echo
+            if [ -f build/xsim/xsim-junit.xml ]; then
+              python3 - build/xsim/xsim-junit.xml <<'EOF'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          suite = ET.parse(sys.argv[1]).getroot()
+          cases = suite.findall("testcase")
+          failed = [c for c in cases if c.find("failure") is not None]
+          skipped = [c for c in cases if c.find("skipped") is not None]
+          passed = len(cases) - len(failed) - len(skipped)
+          print(f"{passed} passed, {len(failed)} failed, {len(skipped)} skipped")
+          for case in failed:
+              print(f"- failed: {case.get('classname')}.{case.get('name')}")
+          EOF
+            else
+              echo "xsim did not produce results; see the log artifact."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: xsim
+          path: |
+            build/xsim/xsim-junit.xml
+            build/xsim/logs/
           if-no-files-found: warn
