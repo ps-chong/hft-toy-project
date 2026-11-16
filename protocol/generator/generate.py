@@ -76,6 +76,16 @@ def validate_record(name: str, record: dict[str, Any], size: int) -> None:
         raise ValueError(f"{name}: fields cover {cursor} of {size} bytes")
 
 
+def strategy_count(ipc: dict[str, Any]) -> int:
+    """Number of R5 strategies. risk_config.strategy_id indexes this list, so
+    its order is the wire value; the R5 variant and the A53 range check both
+    take their size from here."""
+    names = ipc["strategies"]
+    if not 0 < len(names) <= 255 or len(set(names)) != len(names):
+        raise ValueError("ipc strategies must be 1..255 distinct names")
+    return len(names)
+
+
 def ipc_records(ipc: dict[str, Any]) -> dict[str, dict[str, Any]]:
     records: dict[str, dict[str, Any]] = ipc["records"]
     for name, record in records.items():
@@ -160,6 +170,7 @@ namespace hft::protocol {{
 inline constexpr std::uint16_t abi_version = {ipc["version"]};
 inline constexpr std::size_t moldudp64_header_size = {mold["header_size"]};
 inline constexpr std::size_t ipc_record_size = {ipc["record_size"]};
+inline constexpr std::size_t strategy_count = {strategy_count(ipc)};
 {ring_lines}
 inline constexpr std::size_t telemetry_payload_size = {telemetry["payload_size"]};
 inline constexpr std::uint16_t telemetry_source_port =
@@ -371,6 +382,7 @@ def rust_module(
 pub const ABI_VERSION: u16 = {ipc["version"]};
 pub const MOLDUDP64_HEADER_SIZE: usize = {mold["header_size"]};
 pub const IPC_RECORD_SIZE: usize = {ipc["record_size"]};
+pub const STRATEGY_COUNT: u8 = {strategy_count(ipc)};
 {ring_lines}
 pub const TELEMETRY_PAYLOAD_SIZE: usize = {telemetry["payload_size"]};
 pub const TELEMETRY_SOURCE_PORT: u16 = {telemetry["default_source_port"]};
@@ -643,8 +655,8 @@ def replay_vectors(ipc: dict[str, Any]) -> tuple[bytes, bytes]:
 
     The session covers a duplicate (the add replayed), a truncated packet
     (rejected whole, so it must not move the expected sequence), a heartbeat,
-    and a gap (4..9 missing), whose first following event carries the
-    feed_gap flag."""
+    and a gap (3..9 missing: the heartbeat announced 3 and the next packet
+    starts at 10), whose first following event carries the feed_gap flag."""
     reference = 0x0102_0304_0506_0708
     add = mold_packet(1, [itch_add_message()])
     cancel = mold_packet(2, [itch_cancel_message()])

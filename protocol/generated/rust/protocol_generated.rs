@@ -2,13 +2,14 @@
 pub const ABI_VERSION: u16 = 2;
 pub const MOLDUDP64_HEADER_SIZE: usize = 20;
 pub const IPC_RECORD_SIZE: usize = 64;
+pub const STRATEGY_COUNT: u8 = 2;
 pub const RING_PL_TO_R5_DEPTH: usize = 1024;
 pub const RING_R5_TO_A53_DEPTH: usize = 256;
 pub const RING_TELEMETRY_DEPTH: usize = 512;
 pub const TELEMETRY_PAYLOAD_SIZE: usize = 64;
 pub const TELEMETRY_SOURCE_PORT: u16 = 47000;
 pub const TELEMETRY_DESTINATION_PORT: u16 = 47001;
-pub const SCHEMA_SHA256: &str = "ba4292b7c035e026b044ecdaa3817076ee61f2d6436393b326ce3473a2f309cb";
+pub const SCHEMA_SHA256: &str = "31d7b0d1f37731a1c328f3683da50199e7d59a6649df9138258b12f57b46a4b2";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]

@@ -101,6 +101,12 @@ private:
 /// Index order is the wire value of risk_config.strategy_id.
 using StrategySet = std::variant<MirrorStrategy, ImbalanceStrategy>;
 
+// The schema owns the number of strategies; the A53 range-checks strategy_id
+// against the same constant. Adding an alternative here without adding a name to
+// "strategies" in protocol/schema/ipc.yaml (or the reverse) fails to compile.
+static_assert(std::variant_size_v<StrategySet> == protocol::strategy_count,
+              "StrategySet and ipc.yaml 'strategies' disagree");
+
 static_assert(StrategyPolicy<MirrorStrategy>);
 static_assert(StrategyPolicy<ImbalanceStrategy>);
 

@@ -26,7 +26,7 @@
     {"name": "RISK_PRICE_CEILING", "offset": "0x0050", "access": "rw", "reset": 1000000000, "description": "Low 32 bits"},
     {"name": "RISK_PRICE_CEILING_HI", "offset": "0x0054", "access": "rw", "reset": 0},
     {"name": "STOCK_LOCATE", "offset": "0x0058", "access": "rw", "reset": 0, "description": "Instrument whose book the PL maintains; 0 tracks none"},
-    {"name": "STRATEGY_SELECT", "offset": "0x005C", "access": "rw", "reset": 0, "description": "0 = spread cross, 1 = imbalance"},
+    {"name": "STRATEGY_SELECT", "offset": "0x005C", "access": "rw", "reset": 0, "description": "0 = imbalance, 1 = cross (buys only when the book is crossed); any other value raises no signal"},
     {"name": "TOB_ANCHOR_PRICE", "offset": "0x0060", "access": "rw", "reset": 0, "description": "Lowest price of the 1024-tick ladder band"}
   ]
 }

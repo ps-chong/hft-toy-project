@@ -11,7 +11,7 @@ package hft_protocol_pkg is
   constant TELEMETRY_SOURCE_PORT : natural := 47000;
   constant TELEMETRY_DESTINATION_PORT : natural :=
     47001;
-  constant SCHEMA_SHA256 : string := "ba4292b7c035e026b044ecdaa3817076ee61f2d6436393b326ce3473a2f309cb";
+  constant SCHEMA_SHA256 : string := "31d7b0d1f37731a1c328f3683da50199e7d59a6649df9138258b12f57b46a4b2";
   constant ITCH_SYSTEM_EVENT : std_logic_vector(7 downto 0) := x"53";
   constant ITCH_STOCK_DIRECTORY : std_logic_vector(7 downto 0) := x"52";
   constant ITCH_ADD_ORDER : std_logic_vector(7 downto 0) := x"41";

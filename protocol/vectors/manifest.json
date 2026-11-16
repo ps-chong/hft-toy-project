@@ -22,7 +22,7 @@
     "events": 9,
     "expected_events": "replay_expected.bin"
   },
-  "schema_sha256": "ba4292b7c035e026b044ecdaa3817076ee61f2d6436393b326ce3473a2f309cb",
+  "schema_sha256": "31d7b0d1f37731a1c328f3683da50199e7d59a6649df9138258b12f57b46a4b2",
   "telemetry_vectors": [
     {
       "file": "telemetry_event.bin",

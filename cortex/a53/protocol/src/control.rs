@@ -6,8 +6,10 @@ use thiserror::Error;
 
 use crate::{RiskConfigRecord, generated};
 
-/// Number of strategies the R5 implements (see `hft/strategy.hpp`).
-pub const STRATEGY_COUNT: u8 = 2;
+/// Number of strategies the R5 implements. Generated from `strategies` in
+/// `protocol/schema/ipc.yaml`; `hft/strategy.hpp` asserts that its variant has
+/// the same size.
+pub const STRATEGY_COUNT: u8 = generated::STRATEGY_COUNT;
 
 /// Operator-visible risk and trading state. The control actor owns the only
 /// mutable copy; everything else receives snapshots.

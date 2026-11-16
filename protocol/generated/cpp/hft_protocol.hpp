@@ -14,6 +14,7 @@ namespace hft::protocol {
 inline constexpr std::uint16_t abi_version = 2;
 inline constexpr std::size_t moldudp64_header_size = 20;
 inline constexpr std::size_t ipc_record_size = 64;
+inline constexpr std::size_t strategy_count = 2;
 inline constexpr std::size_t ring_pl_to_r5_depth = 1024;
 inline constexpr std::size_t ring_r5_to_a53_depth = 256;
 inline constexpr std::size_t ring_telemetry_depth = 512;
@@ -22,7 +23,7 @@ inline constexpr std::uint16_t telemetry_source_port =
     47000;
 inline constexpr std::uint16_t telemetry_destination_port =
     47001;
-inline constexpr std::string_view schema_sha256 = "ba4292b7c035e026b044ecdaa3817076ee61f2d6436393b326ce3473a2f309cb";
+inline constexpr std::string_view schema_sha256 = "31d7b0d1f37731a1c328f3683da50199e7d59a6649df9138258b12f57b46a4b2";
 
 enum class itch_type : std::uint8_t {
   system_event = 'S',

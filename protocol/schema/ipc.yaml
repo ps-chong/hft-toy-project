@@ -4,6 +4,7 @@
   "byte_order": "little",
   "cache_line_size": 64,
   "record_size": 64,
+  "strategies": ["mirror", "imbalance"],
   "records": {
     "normalized_event": {
       "cpp_type": "MarketEvent",
