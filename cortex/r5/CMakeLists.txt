@@ -58,7 +58,17 @@ if(CMAKE_CROSSCOMPILING)
                       --specs=nosys.specs
                       "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/hft_r5_firmware.map")
   set_target_properties(hft_r5_firmware PROPERTIES SUFFIX ".elf")
+  if(HFT_WITH_XILINX_FREERTOS)
+    # Selects the FreeRTOS tasks, TCM sections and BSP headers in
+    # firmware_main.cpp. The Yocto recipe passes this; it needs the BSP include
+    # paths, so a bare toolchain build leaves it OFF and links with weak hooks.
+    target_compile_definitions(hft_r5_firmware PRIVATE HFT_WITH_XILINX_FREERTOS)
+  endif()
 else()
+  if(HFT_WITH_XILINX_FREERTOS)
+    message(WARNING "HFT_WITH_XILINX_FREERTOS only applies to the cross-compiled "
+                    "R5 firmware; ignored for this host build")
+  endif()
   add_executable(hft_r5_host_demo src/host_demo.cpp)
   target_link_libraries(hft_r5_host_demo PRIVATE hft::r5_core)
 

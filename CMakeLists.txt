@@ -11,6 +11,8 @@ option(HFT_ENABLE_CIB "Enable compile-time-init-build integration" OFF)
 option(HFT_ENABLE_BOOST "Fetch and use the pinned Boost release" ON)
 option(HFT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(HFT_ENABLE_COVERAGE "Instrument host tests for source coverage" OFF)
+option(HFT_WITH_XILINX_FREERTOS
+       "Build the R5 firmware against the AMD FreeRTOS BSP (cross builds only)" OFF)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

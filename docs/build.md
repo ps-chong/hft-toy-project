@@ -37,8 +37,12 @@ cmake --preset r5-release
 cmake --build --preset r5-release
 ```
 
-The latter links `hft_r5_firmware.elf`. The AMD BSP build additionally defines
-`HFT_WITH_XILINX_FREERTOS` and supplies platform hooks.
+The latter links `hft_r5_firmware.elf` with weak platform hooks. The AMD BSP
+build adds `-DHFT_WITH_XILINX_FREERTOS=ON` (the Yocto recipe does): the option
+defines the macro of the same name for the firmware target, which selects the
+FreeRTOS tasks, the TCM sections and the BSP headers, and supplies the real
+platform hooks. It needs the BSP include paths, so CI leaves it off. On a host
+build it is ignored with a warning.
 
 ## A53 Rust
 
