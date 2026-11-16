@@ -18,6 +18,7 @@ pub mod control;
 pub mod counters;
 pub mod gateway;
 pub mod journal;
+pub mod notify;
 pub mod producer;
 pub mod record;
 
@@ -37,7 +38,7 @@ use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::{counters::Counters, gateway::GatewayConfig, record::RingIntent};
+use crate::{counters::Counters, gateway::GatewayConfig, notify::Notifier, record::RingIntent};
 
 /// Errors that stop the daemon.
 #[derive(Debug, Error)]
@@ -79,6 +80,8 @@ pub struct DaemonConfig {
     pub journal_queue: usize,
     /// Analytics reporting period.
     pub analytics_period: Duration,
+    /// systemd readiness and watchdog notifications; a no-op outside systemd.
+    pub notifier: Notifier,
 }
 
 impl Default for DaemonConfig {
@@ -91,6 +94,7 @@ impl Default for DaemonConfig {
             control_socket: PathBuf::from("/run/hftd/control.sock"),
             journal_queue: 1_024,
             analytics_period: Duration::from_secs(5),
+            notifier: Notifier::from_env(),
         }
     }
 }
@@ -228,11 +232,19 @@ where
             cancellation.clone(),
         ),
     );
+    info!(session_id = %config.session_id, "hftd tasks running");
+    config.notifier.ready();
+    if let Some(period) = config.notifier.watchdog() {
+        supervisor.spawn(
+            "watchdog",
+            notify::run_watchdog(config.notifier.clone(), period, cancellation.clone()),
+        );
+    }
     let Supervisor { tracker, .. } = supervisor;
     tracker.close();
 
-    info!(session_id = %config.session_id, "hftd tasks running");
     cancellation.cancelled().await;
+    config.notifier.stopping();
     tracker.wait().await;
     match failure_rx.try_recv() {
         Ok(failure) => Err(failure),

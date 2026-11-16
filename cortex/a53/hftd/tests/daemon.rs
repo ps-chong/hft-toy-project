@@ -3,7 +3,7 @@
 //! gateway, `risk_config` propagation to the R5, and clean shutdown.
 #![allow(clippy::unwrap_used, reason = "test helpers panic on setup failure")]
 
-use std::{path::Path, sync::Arc, time::Duration};
+use std::{os::unix::net::UnixDatagram, path::Path, sync::Arc, time::Duration};
 
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
@@ -20,6 +20,7 @@ use hftd::{
     DaemonConfig,
     counters::Counters,
     gateway::{GatewayConfig, run_gateway},
+    notify::Notifier,
     record::RingIntent,
 };
 use tokio::{
@@ -78,6 +79,17 @@ fn intent(user_ref: u32) -> [u8; 64] {
     .encode_ipc()
 }
 
+/// Everything the daemon has sent to the stand-in for systemd's notify socket.
+fn notifications(socket: &UnixDatagram) -> Vec<String> {
+    socket.set_nonblocking(true).unwrap();
+    let mut messages = Vec::new();
+    let mut buffer = [0_u8; 64];
+    while let Ok(length) = socket.recv(&mut buffer) {
+        messages.push(String::from_utf8_lossy(&buffer[..length]).into_owned());
+    }
+    messages
+}
+
 async fn wait_until(condition: impl Fn() -> bool) {
     for _ in 0..200 {
         if condition() {
@@ -123,9 +135,17 @@ async fn forwards_only_while_armed_and_shuts_down_cleanly() {
         .unwrap();
     let session = login.await.unwrap().unwrap();
 
+    // Stands in for systemd's notify socket.
+    let notify_path = directory.path().join("notify.sock");
+    let notify_socket = UnixDatagram::bind(&notify_path).unwrap();
+
     let cancellation = CancellationToken::new();
     let config = DaemonConfig {
         control_socket: control_socket.clone(),
+        notifier: Notifier::new(
+            Some(notify_path.to_str().unwrap().to_owned()),
+            Some(Duration::from_millis(50)),
+        ),
         ..DaemonConfig::default()
     };
     let daemon = tokio::spawn(hftd::run(
@@ -139,6 +159,15 @@ async fn forwards_only_while_armed_and_shuts_down_cleanly() {
     // Fail-closed start: the R5 is told "killed" before anything else.
     let initial = next_config(&mut r5).await;
     assert_ne!(initial.flags & risk_config_flags::KILL, 0);
+
+    // Readiness comes first, then the watchdog keeps pinging.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let running = notifications(&notify_socket);
+    assert_eq!(running.first().map(String::as_str), Some("READY=1"));
+    assert!(
+        running.iter().filter(|m| *m == "WATCHDOG=1").count() >= 2,
+        "{running:?}"
+    );
 
     // An intent arriving while killed is withheld by the gateway.
     r5.send(intent(1)).await.unwrap();
@@ -175,6 +204,12 @@ async fn forwards_only_while_armed_and_shuts_down_cleanly() {
     assert_eq!(report.intents_sent, 1);
     assert_eq!(report.intents_blocked, 2);
     assert!(!control_socket.exists());
+
+    // Shutdown is announced, and the watchdog stops with the daemon.
+    let stopped = notifications(&notify_socket);
+    assert!(stopped.iter().any(|m| m == "STOPPING=1"), "{stopped:?}");
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert!(notifications(&notify_socket).is_empty());
 }
 
 /// A kill must hold back the very next intent, even one waiting in the same

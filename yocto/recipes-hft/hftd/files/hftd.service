@@ -7,7 +7,16 @@ RequiresMountsFor=/data
 ConditionPathExists=/dev/rpmsg0
 
 [Service]
-Type=simple
+# hftd sends READY=1 once the R5, the exchange and the journal are connected
+# and its tasks run, so units ordered after it (hft-update-health) wait for a
+# working daemon. start-up retries each connection for HFT_CONNECT_ATTEMPTS
+# seconds (30 by default), hence the generous start timeout.
+Type=notify
+NotifyAccess=main
+TimeoutStartSec=180
+# A runtime that stops scheduling stops the pings; systemd then aborts the
+# process and Restart= brings it back. One stuck task is not detected here.
+WatchdogSec=10
 User=hft
 Group=hft
 EnvironmentFile=-/data/hft/hftd.env
