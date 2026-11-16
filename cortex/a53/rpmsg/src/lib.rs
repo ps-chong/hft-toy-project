@@ -204,6 +204,13 @@ impl RpmsgEndpoint {
     }
 }
 
+/// The ABI version every record starts with (the generated layout puts
+/// `abi_version` at offset 0 in all three record types).
+fn record_abi(record: &[u8; generated::IPC_RECORD_SIZE]) -> u16 {
+    const OFFSET: usize = generated::ipc::order_intent::ABI_VERSION;
+    u16::from_le_bytes([record[OFFSET], record[OFFSET + 1]])
+}
+
 fn check_abi(remote: u16) -> Result<(), RpmsgError> {
     if remote == generated::ABI_VERSION {
         Ok(())
@@ -218,9 +225,11 @@ fn check_abi(remote: u16) -> Result<(), RpmsgError> {
 impl RpmsgTransport for RpmsgEndpoint {
     async fn receive_intent(&mut self) -> Result<OrderIntent, RpmsgError> {
         let record = self.read_record().await?;
-        let intent = OrderIntent::decode_ipc(&record)?;
-        check_abi(intent.abi_version)?;
-        Ok(intent)
+        // The version comes first: a record from another ABI may carry
+        // values this build cannot decode, and that must be reported as a
+        // version mismatch, not as a malformed record.
+        check_abi(record_abi(&record))?;
+        Ok(OrderIntent::decode_ipc(&record)?)
     }
 
     async fn send_config(&mut self, config: &RiskConfigRecord) -> Result<(), RpmsgError> {
@@ -299,6 +308,32 @@ mod tests {
         assert!(matches!(
             endpoint.receive_intent().await,
             Err(RpmsgError::AbiMismatch { remote: 99, .. })
+        ));
+    }
+
+    /// A record from another ABI may hold values this build cannot decode.
+    /// It must still be reported as a version mismatch, which is the cause,
+    /// not as a malformed record, which is only a symptom.
+    #[tokio::test]
+    async fn reports_the_abi_before_an_undecodable_body() {
+        let (local, remote) = UnixStream::pair().unwrap();
+        let mut endpoint = RpmsgEndpoint::Unix(UnixRpmsg::new(local));
+        let mut r5 = Framed::new(remote, RecordCodec);
+        let mut image = OrderIntent::default().encode_ipc();
+        image[0] = 99;
+        image[generated::ipc::order_intent::ACTION] = 0xEE;
+        r5.send(image).await.unwrap();
+        assert!(matches!(
+            endpoint.receive_intent().await,
+            Err(RpmsgError::AbiMismatch { remote: 99, .. })
+        ));
+
+        // The same unknown action under the right ABI is a protocol error.
+        image[0] = generated::ABI_VERSION.to_le_bytes()[0];
+        r5.send(image).await.unwrap();
+        assert!(matches!(
+            endpoint.receive_intent().await,
+            Err(RpmsgError::Protocol(_))
         ));
     }
 }
