@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+# bash, not sh: the deadline below needs $SECONDS, which a POSIX sh does not
+# provide (dash leaves it unset, and set -u then aborts the script).
 set -eu
 
 upgrade_available="$(fw_printenv -n upgrade_available 2>/dev/null || printf '0')"

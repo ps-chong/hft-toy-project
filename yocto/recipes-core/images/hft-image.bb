@@ -16,8 +16,12 @@ IMAGE_INSTALL:append = " \
 "
 
 # ext4.gz and bootvfat.gz are the rootfs and boot-slot artifacts the SWUpdate
-# bundle (deploy/swupdate/sw-description) installs.
-IMAGE_FSTYPES += "tar.zst ext4 ext4.gz bootvfat.gz wic wic.bmap"
+# bundle (deploy/swupdate/sw-description) installs; wic and wic.bmap, the flash
+# image, come from the machine configuration. zynqmp-generic also asks for
+# several formats nothing here uses (tar.gz, cpio*, wic.qemu-sd); building them
+# costs minutes and deploy space on every image.
+IMAGE_FSTYPES += "tar.zst ext4 ext4.gz bootvfat.gz"
+IMAGE_FSTYPES:remove = "tar.gz cpio cpio.gz cpio.gz.u-boot wic.qemu-sd"
 WKS_SEARCH_PATH:append = ":${LAYERDIR}/wic"
 
 # bootvfat: the IMAGE_BOOT_FILES that wic's bootimg-partition writes into
