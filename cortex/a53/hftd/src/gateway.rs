@@ -173,11 +173,13 @@ where
                 return Ok(());
             }
             () = consumer.wait(config.wait) => {
-                // One snapshot per batch: a kill arriving mid-batch applies
-                // from the next batch, at most `batch` intents later.
-                let snapshot = *control.borrow();
                 consumer.read_batch(config.batch, |_, record| batch.push(record));
                 for record in batch.drain(..) {
+                    // One snapshot per intent, not per batch: sending can
+                    // wait on the socket, and a kill that lands meanwhile
+                    // must hold back the very next intent, not the next
+                    // batch. The borrow is copied and released at once.
+                    let snapshot = *control.borrow();
                     gateway.forward(record, &snapshot).await?;
                 }
             }
