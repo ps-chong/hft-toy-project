@@ -15,10 +15,30 @@ and a verified MYIR PS/DDR preset exported as AMD SDT artifacts. The generic
 machine is intentionally non-deployable until those artifacts are supplied.
 The build does not invoke Vivado and never deploys to a board.
 
-`HFT_SRCREV` must be set to an immutable commit in release builds. The default
-`AUTOREV` exists only so a developer can build the current `develop` branch.
-Release signing additionally requires the external variables documented in
+## Release builds
+
+`kas/myd-czu5ev-v2.yml` is the development manifest: `HFT_SRCREV` defaults to
+`AUTOREV` (the tip of `develop`), the image carries `debug-tweaks` (an empty
+root password) and the SWUpdate web interface, and the bundle is unsigned.
+`kas/release.yml` is an overlay for images that may be installed on a board:
+
+```bash
+HFT_SRCREV=<40-character commit hash> \
+HFT_SWUPDATE_PRIVATE_KEY=/secure/swupdate-signing-key.pem \
+HFT_SWUPDATE_CERTIFICATE=/secure/swupdate-signing-cert.pem \
+HFT_SWUPDATE_PUBLIC_CERT=/secure/swupdate-signing-cert.pem \
+kas build yocto/kas/release.yml
+```
+
+It sets `HFT_RELEASE = "1"`, removes `debug-tweaks` and `swupdate-www`, turns on
+CMS signing of the bundle, and inherits `classes/hft-release.bbclass`. That
+class refuses to parse the configuration, before any task runs, unless
+`HFT_SRCREV` is a 40-character commit hash, the three signing variables name
+existing files, and `debug-tweaks` is gone. Key handling is described in
 `deploy/swupdate/keys/README.md`.
+
+Without `debug-tweaks` the image has no shell login; a site layer has to add
+accounts or authorized keys. CI (`yocto.yml`) builds the development manifest.
 
 ## ONNX Runtime
 

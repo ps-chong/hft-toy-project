@@ -1,0 +1,33 @@
+# Release overlay for myd-czu5ev-v2.yml: the same image, but the build refuses
+# to parse unless it is pinned to a commit, signed, and free of the developer
+# conveniences (see classes/hft-release.bbclass for the checks).
+#
+#   HFT_SRCREV=<40-character commit hash> \
+#   HFT_SWUPDATE_PRIVATE_KEY=/secure/swupdate-signing-key.pem \
+#   HFT_SWUPDATE_CERTIFICATE=/secure/swupdate-signing-cert.pem \
+#   HFT_SWUPDATE_PUBLIC_CERT=/secure/swupdate-signing-cert.pem \
+#   kas build yocto/kas/release.yml
+#
+# In a container the key files must be mounted and the variables passed with
+# docker run -e. kas forwards the four variables below to bitbake.
+header:
+  version: 14
+  includes:
+    - yocto/kas/myd-czu5ev-v2.yml
+
+env:
+  HFT_SRCREV: ""
+  HFT_SWUPDATE_PRIVATE_KEY: ""
+  HFT_SWUPDATE_CERTIFICATE: ""
+  HFT_SWUPDATE_PUBLIC_CERT: ""
+
+local_conf_header:
+  hft-release: |
+    HFT_RELEASE = "1"
+    # debug-tweaks gives root an empty password. Without it the image has no
+    # shell login until a site layer adds accounts.
+    EXTRA_IMAGE_FEATURES:remove = "debug-tweaks"
+    HFT_SWUPDATE_SIGNING = "1"
+    # The SWUpdate web interface is a development convenience.
+    IMAGE_INSTALL:remove:pn-hft-image = "swupdate-www"
+    INHERIT += "hft-release"

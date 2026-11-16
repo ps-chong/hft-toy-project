@@ -38,8 +38,32 @@ kas builds in `build/` at the repository root. Outputs land in
 and `yocto/sstate-cache`.
 
 The image recipes fetch the project's own sources from GitHub at
-`HFT_SRCREV` (default: the tip of `develop`), so push before building, and
-pin `HFT_SRCREV` to a commit for anything you intend to keep.
+`HFT_SRCREV` (default: the tip of `develop`), so push before building. The
+development manifest is for that loop only; an image you intend to keep is a
+release build.
+
+## Release build
+
+`yocto/kas/release.yml` layers release rules over the development manifest. It
+removes `debug-tweaks` (the empty root password) and `swupdate-www` from the
+image, enables CMS signing of the bundle, and inherits the `hft-release` class,
+which stops the parse with a list of every problem unless `HFT_SRCREV` is a
+40-character commit hash and the signing key, certificate and public
+certificate are existing files:
+
+```bash
+docker run --rm -v "$PWD:/workspace" -v /secure:/secure:ro \
+  -e HFT_SRCREV=<commit> \
+  -e HFT_SWUPDATE_PRIVATE_KEY=/secure/swupdate-signing-key.pem \
+  -e HFT_SWUPDATE_CERTIFICATE=/secure/swupdate-signing-cert.pem \
+  -e HFT_SWUPDATE_PUBLIC_CERT=/secure/swupdate-signing-cert.pem \
+  hft-yocto kas build yocto/kas/release.yml
+```
+
+The checks run at parse time, so a missing key fails in seconds rather than
+hours into the build. The release image has no shell login until a site layer
+adds accounts. The weekly `yocto.yml` run builds the development manifest and
+does not exercise these rules.
 
 ## ONNX Runtime
 
