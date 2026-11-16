@@ -12,7 +12,7 @@
 //!
 //! Tasks share only the ring, `watch` snapshots, bounded channels, and the
 //! relaxed [`counters::Counters`]. A [`TaskTracker`] supervises them: the
-//! first failure cancels the rest, and the daemon fails closed.
+//! first failure, or panic, cancels the rest, and the daemon fails closed.
 
 pub mod control;
 pub mod counters;
@@ -57,6 +57,9 @@ pub enum DaemonError {
     /// The ring geometry is invalid.
     #[error(transparent)]
     Ring(#[from] BuildError),
+    /// A task panicked. The panic hook has already printed the message.
+    #[error("task {0} panicked")]
+    Panicked(&'static str),
 }
 
 /// Static daemon parameters.
@@ -97,6 +100,11 @@ pub type DaemonReport = DaemonCounters;
 
 /// Spawns tasks on a [`TaskTracker`]; the first failure is recorded and
 /// cancels every other task, so the daemon fails closed as a unit.
+///
+/// A panic counts as a failure. Each task runs on its own `tokio::spawn`, and
+/// the tracked wrapper awaits its `JoinHandle`: a panic comes back as a
+/// `JoinError` there. Without the wrapper a panic would end only that task
+/// and leave the others trading without it.
 struct Supervisor {
     tracker: TaskTracker,
     failures: mpsc::Sender<DaemonError>,
@@ -112,12 +120,16 @@ impl Supervisor {
         let failures = self.failures.clone();
         let cancellation = self.cancellation.clone();
         self.tracker.spawn(async move {
-            if let Err(failure) = task.await {
-                let failure = failure.into();
-                error!(task = name, error = %failure, "task failed; shutting down");
-                let _ = failures.try_send(failure);
-                cancellation.cancel();
-            }
+            let failure = match tokio::spawn(task).await {
+                Ok(Err(failure)) => failure.into(),
+                Err(join) if join.is_panic() => DaemonError::Panicked(name),
+                // A clean exit, or an abort, which only happens while the
+                // runtime itself is dropped: nothing left to supervise.
+                Ok(Ok(())) | Err(_) => return,
+            };
+            error!(task = name, error = %failure, "task failed; shutting down");
+            let _ = failures.try_send(failure);
+            cancellation.cancel();
         });
     }
 }
@@ -152,12 +164,14 @@ where
         failures: failure_tx,
         cancellation: cancellation.clone(),
     };
-    supervisor.tracker.spawn(control::run_control_actor(
-        request_rx,
-        control_tx,
-        Arc::clone(&counters),
-        cancellation.clone(),
-    ));
+    supervisor.spawn("control-actor", {
+        let counters = Arc::clone(&counters);
+        let cancellation = cancellation.clone();
+        async move {
+            control::run_control_actor(request_rx, control_tx, counters, cancellation).await;
+            Ok::<(), DaemonError>(())
+        }
+    });
     supervisor.spawn(
         "control-server",
         control::run_control_server(
@@ -223,5 +237,66 @@ where
     match failure_rx.try_recv() {
         Ok(failure) => Err(failure),
         Err(_) => Ok(counters.snapshot()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn supervisor() -> (Supervisor, mpsc::Receiver<DaemonError>, CancellationToken) {
+        let (failures, failure_rx) = mpsc::channel(8);
+        let cancellation = CancellationToken::new();
+        let supervisor = Supervisor {
+            tracker: TaskTracker::new(),
+            failures,
+            cancellation: cancellation.clone(),
+        };
+        (supervisor, failure_rx, cancellation)
+    }
+
+    #[tokio::test]
+    async fn a_panicking_task_fails_the_daemon_closed() {
+        let (supervisor, mut failure_rx, cancellation) = supervisor();
+        supervisor.spawn::<_, DaemonError>("boom", async { panic!("simulated task bug") });
+        supervisor.spawn("bystander", {
+            let cancellation = cancellation.clone();
+            async move {
+                cancellation.cancelled().await;
+                Ok::<(), DaemonError>(())
+            }
+        });
+        supervisor.tracker.close();
+
+        tokio::time::timeout(Duration::from_secs(5), cancellation.cancelled())
+            .await
+            .expect("a panic must cancel the other tasks");
+        supervisor.tracker.wait().await;
+        assert!(matches!(
+            failure_rx.try_recv(),
+            Ok(DaemonError::Panicked("boom"))
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_returned_error_still_fails_the_daemon_closed() {
+        let (supervisor, mut failure_rx, cancellation) = supervisor();
+        supervisor.spawn("broken", async {
+            Err(std::io::Error::other("socket gone"))
+        });
+        supervisor.tracker.close();
+        supervisor.tracker.wait().await;
+        assert!(cancellation.is_cancelled());
+        assert!(matches!(failure_rx.try_recv(), Ok(DaemonError::Control(_))));
+    }
+
+    #[tokio::test]
+    async fn a_clean_exit_cancels_nothing() {
+        let (supervisor, mut failure_rx, cancellation) = supervisor();
+        supervisor.spawn("done", async { Ok::<(), DaemonError>(()) });
+        supervisor.tracker.close();
+        supervisor.tracker.wait().await;
+        assert!(!cancellation.is_cancelled());
+        assert!(failure_rx.try_recv().is_err());
     }
 }
