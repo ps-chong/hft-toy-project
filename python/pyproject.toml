@@ -20,7 +20,10 @@ dev = [
   "pytest>=8.4",
   "pytest-cov>=6.2",
   "ruff>=0.13",
-  "vsg>=3.35",
+  # Below 3.36: that release added style rules (array spacing, signal default
+  # indentation) the RTL does not follow, and it broke the FPGA lint job. Move
+  # up together with the RTL formatting.
+  "vsg>=3.35,<3.36",
   "vunit_hdl>=4.7",
   # Exact: docs/figures/ingress-waveform.svg is checked for drift in CI.
   "wavedrom==2.0.3.post3"
