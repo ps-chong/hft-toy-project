@@ -81,8 +81,16 @@ job_a53() {
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace --all-targets
+    # A fresh database, every migration in order, then once more.
     PGPASSWORD=hft-test psql -h hft-ci-postgres -U hft -d hft_test -v ON_ERROR_STOP=1 \
-      -f cortex/a53/storage/migrations/0001_initial.sql >/dev/null
+      -c "CREATE DATABASE hft_migrations" >/dev/null
+    for pass in 1 2; do
+      for migration in cortex/a53/storage/migrations/*.sql; do
+        PGPASSWORD=hft-test PGOPTIONS="-c client_min_messages=warning" \
+          psql -h hft-ci-postgres -U hft -d hft_migrations \
+          -v ON_ERROR_STOP=1 -q -f "$migration"
+      done
+    done
     RUSTFLAGS="--cfg loom" CARGO_TARGET_DIR=target/loom \
       cargo test -p hft-disruptor --release --test loom
     cargo build --workspace --release --target aarch64-unknown-linux-gnu

@@ -122,7 +122,11 @@ impl PgRepository {
             .max_connections(max_connections)
             .connect(url)
             .await?;
-        sqlx::migrate!("./migrations").run(&pool).await?;
+        let mut migrator = sqlx::migrate!("./migrations");
+        // Migrations only expand the schema, so a slot rolled back to an older
+        // build must still start against a database a newer build has migrated.
+        migrator.set_ignore_missing(true);
+        migrator.run(&pool).await?;
         Ok(Self { pool })
     }
 }
@@ -197,14 +201,15 @@ impl Repository for PgRepository {
         }
         let columns = OrderColumns::from_orders(orders)?;
         // One round trip per batch: PostgreSQL expands the arrays into rows.
+        // Every row gets its own event_id, so there is no conflict to skip:
+        // a failure here is a real failure and is returned to the journal.
         sqlx::query(
             "INSERT INTO order_events \
              (session_id, user_ref, source_sequence, event_type, side, symbol, \
               price, quantity, risk_revision) \
              SELECT * FROM UNNEST($1::uuid[], $2::bigint[], $3::bigint[], $4::text[], \
                                   $5::text[], $6::text[], $7::bigint[], $8::bigint[], \
-                                  $9::integer[]) \
-             ON CONFLICT DO NOTHING",
+                                  $9::integer[])",
         )
         .bind(&columns.sessions)
         .bind(&columns.user_refs)
@@ -323,6 +328,8 @@ impl Repository for AnyRepository {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use super::*;
 
     #[tokio::test]
@@ -373,33 +380,92 @@ mod tests {
         ));
     }
 
-    /// Runs against the CI PostgreSQL service when `DATABASE_URL` is set.
-    #[tokio::test]
-    async fn postgres_round_trip_when_available() {
-        let Some(url) = std::env::var("DATABASE_URL")
+    fn database_url() -> Option<String> {
+        std::env::var("DATABASE_URL")
             .ok()
             .filter(|url| !url.is_empty())
-        else {
-            return;
-        };
-        let repository = PgRepository::connect(&url, 1).await.unwrap();
-        let session = SessionInfo {
+    }
+
+    fn new_session() -> SessionInfo {
+        SessionInfo {
             session_id: Uuid::new_v4(),
             feed_session: "TESTSESS01".to_owned(),
             build_id: "test".to_owned(),
             schema_version: 2,
-        };
-        repository.open_session(&session).await.unwrap();
-        let order = PersistedOrder {
+        }
+    }
+
+    fn sent(session: &SessionInfo, user_ref: u32) -> PersistedOrder {
+        PersistedOrder {
             session_id: session.session_id,
             intent: OrderIntent {
-                user_ref: 1,
+                user_ref,
                 side: Side::Buy,
                 ..OrderIntent::default()
             },
             event_type: OrderEventType::Sent,
+        }
+    }
+
+    async fn row_count(repository: &PgRepository, session: &SessionInfo) -> i64 {
+        sqlx::query_scalar("SELECT count(*) FROM order_events WHERE session_id = $1")
+            .bind(session.session_id)
+            .fetch_one(&repository.pool)
+            .await
+            .unwrap()
+    }
+
+    /// Runs against the CI PostgreSQL service when `DATABASE_URL` is set.
+    #[tokio::test]
+    async fn postgres_round_trip_when_available() {
+        let Some(url) = database_url() else {
+            return;
         };
-        repository.store_orders(&[order]).await.unwrap();
+        let repository = PgRepository::connect(&url, 1).await.unwrap();
+        let session = new_session();
+        repository.open_session(&session).await.unwrap();
+        repository.store_orders(&[sent(&session, 1)]).await.unwrap();
         repository.health().await.unwrap();
+        assert_eq!(row_count(&repository, &session).await, 1);
+    }
+
+    /// `now()` is the transaction start, so every row of a batch shares one
+    /// `occurred_at`. Two rows with the same user reference and event type
+    /// must still both be journaled.
+    #[tokio::test]
+    async fn rows_that_share_every_natural_column_are_all_kept() {
+        let Some(url) = database_url() else {
+            return;
+        };
+        let repository = PgRepository::connect(&url, 1).await.unwrap();
+        let session = new_session();
+        repository.open_session(&session).await.unwrap();
+        let order = sent(&session, 7);
+        repository.store_orders(&[order, order]).await.unwrap();
+        repository.store_orders(&[order]).await.unwrap();
+        assert_eq!(row_count(&repository, &session).await, 3);
+    }
+
+    /// A slot rolled back to an older build still starts against a database
+    /// that a newer build has migrated, because migrations only expand it.
+    #[tokio::test]
+    async fn an_older_build_starts_against_a_newer_schema() {
+        let Some(url) = database_url() else {
+            return;
+        };
+        let repository = PgRepository::connect(&url, 1).await.unwrap();
+
+        let first_only = |ignore_missing: bool| {
+            let mut migrator = sqlx::migrate!("./migrations");
+            migrator.migrations = Cow::Owned(migrator.migrations.iter().take(1).cloned().collect());
+            migrator.set_ignore_missing(ignore_missing);
+            migrator
+        };
+        let strict = first_only(false).run(&repository.pool).await;
+        assert!(matches!(
+            strict,
+            Err(sqlx::migrate::MigrateError::VersionMissing(_))
+        ));
+        first_only(true).run(&repository.pool).await.unwrap();
     }
 }

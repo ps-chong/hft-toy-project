@@ -59,9 +59,16 @@ jobs:
         env:
           PGPASSWORD: hft-test
         run: |
-          psql -h 127.0.0.1 -U hft -d hft_test \
-            -v ON_ERROR_STOP=1 \
-            -f cortex/a53/storage/migrations/0001_initial.sql
+          # A fresh database, every migration in order, then once more: they
+          # must build the schema from nothing and be safe to re-apply.
+          psql -h 127.0.0.1 -U hft -d hft_test -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE hft_migrations"
+          for pass in 1 2; do
+            for migration in cortex/a53/storage/migrations/*.sql; do
+              psql -h 127.0.0.1 -U hft -d hft_migrations -v ON_ERROR_STOP=1 \
+                -q -f "$migration"
+            done
+          done
       - name: Coverage
         run: |
           cargo install cargo-llvm-cov --locked
