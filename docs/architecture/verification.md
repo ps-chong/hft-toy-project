@@ -52,8 +52,9 @@ frame serialization.
   ThreadSanitizer stress tests of the Disruptor, triple buffer and kill
   switch, clang-tidy, gcovr, Cortex-R5 compile/link/map/size checks.
 - **Rust:** mockall traits, Tokio paused time, proptest, `loom` model checks of
-  the Disruptor, cargo-fuzz target, an end-to-end daemon test, Clippy,
-  rustfmt, cargo-audit/deny, llvm-cov, AArch64 link.
+  the Disruptor, a cargo-fuzz target for the network and IPC decoders (run by
+  `fuzz.yml`), an end-to-end daemon test, Clippy, rustfmt, cargo-audit/deny,
+  llvm-cov, AArch64 link.
 - **System:** the Docker Compose demo in smoke mode asserts fail-closed start,
   arming, feed-gap kill, re-arm, operator kill, and the RTL replay match.
 - **Python:** pytest, Hypothesis-ready deterministic helpers, Ruff, mypy, and

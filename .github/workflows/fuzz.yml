@@ -1,0 +1,43 @@
+name: Fuzz decoders
+
+# The decoders that face the exchange feed, the OUCH session and the R5 are the
+# daemon's attack surface; cargo-fuzz needs nightly Rust, so this stays out of
+# the stable-toolchain a53.yml. It runs when that code changes, and on demand.
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "cortex/a53/protocol/**"
+      - "protocol/vectors/**"
+      - ".github/workflows/fuzz.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      # The golden vectors (MoldUDP64 and IPC images) seed the corpus. They are
+      # copied in because libFuzzer writes the inputs it discovers into a
+      # corpus directory it is given, and that must not be the tracked vectors.
+      - name: Fuzz the network and IPC decoders for two minutes
+        working-directory: cortex/a53/protocol
+        run: |
+          mkdir -p fuzz/corpus/mold_and_soup
+          cp ../../../protocol/vectors/*.bin fuzz/corpus/mold_and_soup/
+          cargo +nightly fuzz run mold_and_soup -- -max_total_time=120
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: fuzz-crashes
+          path: cortex/a53/protocol/fuzz/artifacts/
+          if-no-files-found: ignore
