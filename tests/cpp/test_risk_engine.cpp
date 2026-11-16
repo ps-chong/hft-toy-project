@@ -104,6 +104,45 @@ TEST(RiskEngine, RejectsKilledOversizedAndUnknownSymbol) {
   EXPECT_EQ(unknown_result.error(), hft::RiskError::symbol_disabled);
 }
 
+// The limits are inclusive: a value exactly on one is allowed and one step past
+// it is not. These are the cases a `>` written as `>=` (or `<` as `<=`) breaks.
+TEST(RiskEngine, AcceptsValuesExactlyOnTheLimits) {
+  auto config = armed_config();
+  config.max_orders_per_window = 10;
+  config.max_open_orders = 10;
+  hft::RiskEngine engine{config};
+
+  auto at_quantity = intent(1);
+  at_quantity.quantity = config.max_quantity;
+  EXPECT_TRUE(engine.check(at_quantity));
+
+  auto at_floor = intent(2);
+  at_floor.price = config.price_floor;
+  EXPECT_TRUE(engine.check(at_floor));
+
+  auto at_ceiling = intent(3);
+  at_ceiling.price = config.price_ceiling;
+  EXPECT_TRUE(engine.check(at_ceiling));
+
+  auto past_quantity = intent(4);
+  past_quantity.quantity = config.max_quantity + 1;
+  auto const quantity_result = engine.check(past_quantity);
+  ASSERT_FALSE(quantity_result);
+  EXPECT_EQ(quantity_result.error(), hft::RiskError::quantity_limit);
+
+  auto below_floor = intent(5);
+  below_floor.price = config.price_floor - 1;
+  auto const floor_result = engine.check(below_floor);
+  ASSERT_FALSE(floor_result);
+  EXPECT_EQ(floor_result.error(), hft::RiskError::price_collar);
+
+  auto above_ceiling = intent(6);
+  above_ceiling.price = config.price_ceiling + 1;
+  auto const ceiling_result = engine.check(above_ceiling);
+  ASSERT_FALSE(ceiling_result);
+  EXPECT_EQ(ceiling_result.error(), hft::RiskError::price_collar);
+}
+
 TEST(RiskEngine, EnforcesStockLocateAllowlist) {
   auto config = armed_config();
   config.allowed_locates = {1, 7};
