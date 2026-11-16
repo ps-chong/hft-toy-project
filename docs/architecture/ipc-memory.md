@@ -11,6 +11,14 @@
 | PL event ring | `0x3ef00000` | 1 MiB | PL producer/R5 consumer | noncoherent shared |
 | PL registers | `0xa0000000` | 64 KiB | PL with PS access | device |
 
+The R5 ELF/load region is 256 KiB. The only footprint measured so far is the
+freestanding link that CI builds without the AMD BSP: 431,520 bytes of text,
+4,260 of data and 227,396 of bss, 663,176 bytes (about 648 KiB) in total, which
+is larger than the region. The board build uses a different linker script, so
+this is a question to settle at bring-up, not a conclusion; until then do not
+assume that the firmware fits the carve-out. No build step compares the size
+with the region.
+
 The MYD device-tree fragment exposes the register span as `generic-uio` and
 binds the PL ring reserved memory. It is still a provisional executable
 contract: addresses and the future PL interrupt must be compared with the
@@ -59,6 +67,15 @@ Sequences are 32-bit and compared by wrap-safe distance, because the PL
 cannot take part in 64-bit exclusive accesses and aligned 32-bit stores are
 single-copy atomic on both sides of the interconnect. Adding a producer is an
 architecture change, not a locking exercise.
+
+## RPMsg endpoint
+
+`hftd` opens `/dev/rpmsg0`. Nothing in this repository creates that node: there
+is no `rpmsg_ctrl` call, `driver_override` write or udev rule, and `cortex/r5`
+contains no OpenAMP resource table or endpoint code. Both are expected to come
+from the BSP platform layer, which is not part of this repository.
+`hftd.service` has `ConditionPathExists=/dev/rpmsg0`, so without the endpoint the
+unit is skipped instead of failing.
 
 ## ABI negotiation
 

@@ -79,4 +79,26 @@ kas shell yocto/kas/myd-czu5ev-v2.yml -c 'bitbake onnxruntime hft-onnx-smoke'
 The current layer encodes the reserved memory and remoteproc contract, but the
 R5 node labels and PL address map must be compared with the XSA/SDT exported by
 the local Vivado 2026.1 build before flashing an image. No board deployment is
-part of current CI.
+part of current CI. Known gaps, recorded so they are not mistaken for working
+features:
+
+- **R5 multiconfig.** `HFT_ENABLE_R5_MULTICONFIG = "1"` cannot be enabled yet.
+  The standalone layers (`xilinx-freertos`, the R5 machine) live in the
+  `meta-xilinx` checkout but are not enabled in the kas manifest, and no
+  `hft-myd-czu5ev-v2-cortexr5-0` machine is defined; BitBake's sanity check
+  stops with `DISTRO 'xilinx-freertos' not found`. It needs those layers and a
+  machine generated from the MYIR SDT/XSA.
+- **Remoteproc unit.** `hftd.service` has `Requires=hft-remoteproc.service`,
+  but `hft-remoteproc` and `hft-r5-firmware` are part of the image only with
+  the R5 multiconfig. A default image therefore has no unit for `hftd` to
+  require, and `hftd` does not start there.
+- **Firmware size.** The freestanding R5 link is 663,176 bytes (431,520 text,
+  4,260 data, 227,396 bss), larger than the 256 KiB `r5_firmware` carve-out.
+  The board linker script differs, so measure it at bring-up.
+- **`/dev/rpmsg0`.** Nothing here creates the RPMsg character device; it is
+  expected from the BSP platform layer. See
+  `docs/architecture/ipc-memory.md`.
+- **Boot chain and device tree.** U-Boot, TF-A, the FSBL and the PMU firmware
+  are not built, nothing reads `boot_slot`, and the `device-tree` recipe is
+  skipped, so the boot partition has no `system.dtb`. See
+  `docs/architecture/boot-update.md`.

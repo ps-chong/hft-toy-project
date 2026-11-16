@@ -4,6 +4,5 @@ stateDiagram-v2
     Authenticating --> Active: Login Accepted
     Authenticating --> Disconnected: Login Rejected or timeout
     Active --> Active: Order and heartbeat traffic
-    Active --> Reconnecting: EOF, timeout, sequence fault
-    Reconnecting --> Authenticating: Backoff complete
-    Reconnecting --> Disconnected: Cancellation
+    Active --> Failed: EOF, server silence, or session error
+    Failed --> [*]: daemon fails closed, systemd restarts it

@@ -275,6 +275,9 @@ impl<T: Slotted> GatingConsumer<T> {
         if count > 0 {
             self.next += count;
             // Release: our slot reads happen before the producer reuses them.
+            // This store and `slowest_gating`'s Acquire load are not checked by
+            // the loom models (loom does not model load buffering, so weakening
+            // either side still passes); see docs/concurrency-model.md.
             shared.gating[self.index]
                 .0
                 .store(self.next, Ordering::Release);

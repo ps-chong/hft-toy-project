@@ -101,3 +101,27 @@ maintenance, which live in the PL-shared memory policy of the R5 ring and in
 the platform adapter. ThreadSanitizer (C++) and `loom` (Rust) cover the host
 builds. Actual cacheability and barrier behavior on the MPSoC remain
 hardware-verification items.
+
+### What the checkers cover, and what they do not
+
+A green run is weaker evidence than it looks, and the gaps are known:
+
+- **C++.** There is no model checker for the R5 ring. Relaxing the cursor
+  publication from release to relaxed still passes the whole host suite,
+  including ThreadSanitizer, so a green host run says nothing about that
+  ordering.
+- **Rust.** `loom` explores every interleaving of two models (a gating consumer
+  sees every record intact and in order; a lossy consumer never delivers a torn
+  record) and does catch the same weakening of the producer's cursor store.
+  Across a sweep of eight single-site ordering weakenings of the ring, it
+  caught four.
+- **The gating pair is not checked.** The gating consumer's `Release` store of
+  its sequence and the producer's `Acquire` load of the slowest sequence
+  (`read_batch` and `slowest_gating` in `cortex/a53/disruptor/src/lib.rs`) can
+  each be weakened with every test and every loom model still passing: loom does
+  not model load buffering, so it cannot show a producer reusing a slot early.
+  Two stamp orderings (the stamp's `Release` store and the first stamp
+  `Acquire`) also survive, even against a stronger oracle, which suggests they
+  are redundant. Treat the argument in the code comment as the contract and
+  change either side of the gating pair only after reviewing it, not because
+  loom stays green.

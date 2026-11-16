@@ -20,6 +20,13 @@ compiler/build ID, and clock configuration alongside every run.
 | R5 model on the host: event intake to intent (p50 / p99) | 18.1 us / 60.2 us | demo, 312 samples |
 | A53 on the host: intent to exchange ack (p50 / p99) | 195 us / 436 us | demo, through Docker networking |
 
+The analytics task also stores a third figure, `decision_to_receipt`: the R5's
+decision timestamp subtracted from the A53's clock at RPMsg receipt. That is
+meaningful only on the host demo, where the R5 model and `hftd` both read
+`CLOCK_MONOTONIC`. On the board the two timestamps come from separate clock
+domains, so the number is not a latency; leave it out of any report of board
+measurements.
+
 The PL numbers are cycle-exact properties of the RTL. The host numbers come
 from processes in containers on a Windows workstation and only show that the
 software paths work; they say nothing about the R5 or A53 on the board.
